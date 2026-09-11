@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+    content="SA-UNetv2: Rethinking Spatial Attention U-Net for Retinal Vessel Segmentation.">
+  <meta name="keywords" content="SA-UNetv2, Retinal Vessel Segmentation, Spatial Attention, U-Net, Medical Image Segmentation, ISBI 2026">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SA-UNetv2: Rethinking Spatial Attention U-Net</title>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PYVRSFMDRL"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-PYVRSFMDRL');
+  </script>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="./static/images/favicon.svg">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
+</head>
+
+<body>
+
+
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">SA-UNetv2: Rethinking Spatial Attention U-Net for Retinal Vessel Segmentation</h1>
+            <div class="publication-venue"
+              style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; margin-bottom: 25px;">
+              <img src="./images/isbi_logo.png" alt="ISBI Logo" style="height: 100px; width: auto;">
+              <span class="tag is-link is-light is-large" style="margin-top: 15px; font-weight: 700; border-radius: 50px; padding: 0 1.5em; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                <span class="icon" style="margin-right: 0.5em;"><i class="fas fa-microphone"></i></span>
+                Oral Presentation
+              </span>
+            </div>
+            <div class="is-size-5 publication-authors">
+              <span class="author-block">
+                <a href="https://scholar.google.com/citations?user=y6XNTKEAAAAJ&hl=en" target="_blank">Changlu Guo</a><sup>1</sup>,</span>
+              <span class="author-block">
+                <a href="https://scholar.google.com/citations?user=bkWG4OYAAAAJ&hl=da" target="_blank">Anders Nymark Christensen</a><sup>1</sup>,</span>
+              <span class="author-block">
+                <a href="https://scholar.google.com/citations?user=WsgfNRMAAAAJ&hl=da" target="_blank">Anders Bjorholm Dahl</a><sup>1</sup>,
+              </span>
+              <span class="author-block">
+                <a href="https://scholar.google.com/citations?user=io3RD0gAAAAJ&hl=zh-CN" target="_blank">Yugen Yi</a><sup>2</sup>,
+              </span>
+              <span class="author-block">
+                <a href="https://mortenhannemose.github.io/" target="_blank">Morten Rieger Hannemose</a><sup>1</sup>
+              </span>
+            </div>
+
+            <div class="is-size-5 publication-authors">
+              <span class="author-block"><sup>1</sup>Technical University of Denmark</span> &nbsp;
+              <span class="author-block"><sup>2</sup>Jiangxi Normal University</span>
+            </div>
+
+            <div class="column has-text-centered">
+              <div class="publication-links">
+                <!-- PDF Link. -->
+                <span class="link-block">
+                  <a href="https://arxiv.org/pdf/2509.11774"
+                    class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                    </span>
+                    <span>Paper</span>
+                  </a>
+                </span>
+                <span class="link-block">
+                  <a href="https://arxiv.org/abs/2509.11774" class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                    </span>
+                    <span>arXiv</span>
+                  </a>
+                </span>
+                <!-- Code Link. -->
+                <span class="link-block">
+                  <a href="https://github.com/clguo/SA-UNetv2" class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fab fa-github"></i>
+                    </span>
+                    <span>Code</span>
+                  </a>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <img id="teaser" src="./images/saunetv2/comparison.png" alt="SA-UNetv2 Comparison"
+          style="max-width: 80%; margin: 0 auto; display: block;">
+        <h2 class="subtitle has-text-centered" style="margin-top: 15px;">
+          <span class="dnerf">SA-UNetv2</span> achieves state-of-the-art performance with only <strong>1.2MB</strong> memory and <strong>0.26M</strong> parameters, delivering sub-second CPU inference for retinal vessel segmentation.
+        </h2>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="section">
+    <div class="container is-max-desktop">
+      <!-- Abstract. -->
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Abstract</h2>
+          <div class="content has-text-justified">
+            <p>
+              Retinal vessel segmentation is a crucial yet challenging task for early diagnosis of diseases such as diabetes and hypertension. SA-UNet achieves promising performance by introducing spatial attention in the bottleneck, but it underuses attention in skip connections and fails to address the severe foreground–background imbalance. 
+            </p>
+            <p>
+              We propose <strong>SA-UNetv2</strong>, a lightweight model that injects cross-scale spatial attention into all skip connections to strengthen multi-scale feature fusion and adopts a weighted Binary Cross-Entropy (BCE) + Matthews Correlation Coefficient (MCC) loss to improve robustness to class imbalance. 
+            </p>
+            <p>
+              On the public DRIVE and STARE datasets, SA-UNetv2 achieves state-of-the-art performance with only <strong>1.2MB</strong> memory and <strong>0.26M</strong> parameters (less than 50% of SA-UNet), and <strong>1 second</strong> CPU inference on 592 &times; 592 &times; 3 images, demonstrating strong efficiency and deployability in resource-constrained, CPU-only settings.
+            </p>
+          </div>
+        </div>
+      </div>
+      <!--/ Abstract. -->
+
+      <!-- Method Overview. -->
+      <div class="columns is-centered has-text-centered" style="margin-top: 30px;">
+        <div class="column is-full">
+          <h2 class="title is-3">Architecture & Method</h2>
+          <div class="publication-image">
+            <img src="./images/saunetv2/architecture.png" alt="SA-UNetv2 Architecture" style="width: 100%;">
+          </div>
+          <div class="content has-text-justified" style="margin-top: 15px;">
+            <p>
+              The Architecture of SA-UNetv2 addresses limitations in convolutional block design and feature fusion through three structural enhancements. First, the convolutional unit is optimized to a <strong>Conv 3&times;3 &rarr; DropBlock &rarr; Group Normalization &rarr; SiLU</strong> structure for stability and better gradient flow. Second, the feature channel configuration is compressed to [16, 32, 48, 64], reducing parameter count by 51.9%. 
+            </p>
+            <p>
+              Finally, we propose the <strong>Cross-scale Spatial Attention (CSA)</strong> module, integrated into all skip connections to bridge the semantic gap between encoder and decoder features. CSA jointly exploits complementary information from both encoder and decoder pathways, enhancing fine-grained structural delineation.
+            </p>
+          </div>
+        </div>
+      </div>
+      <!--/ Method Overview. -->
+    </div>
+  </section>
+
+
+  <section class="hero is-light is-small">
+    <div class="hero-body">
+      <div class="container">
+        <h2 class="title is-3 has-text-centered" style="margin-bottom: 20px;">Segmentation Results</h2>
+        <style>
+          .custom-slider {
+            display: flex;
+            overflow-x: auto;
+            gap: 15px;
+            padding: 10px 0;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+          }
+
+          .custom-slider::-webkit-scrollbar {
+            height: 8px;
+          }
+
+          .custom-slider::-webkit-scrollbar-track {
+            background: transparent;
+          }
+
+          .custom-slider::-webkit-scrollbar-thumb {
+            background: #d4d4d4;
+            border-radius: 4px;
+          }
+
+          .custom-slider .item {
+            scroll-snap-align: center;
+            flex: 0 0 auto;
+          }
+
+          .custom-slider img {
+            height: 500px;
+            width: auto;
+            display: block;
+            border-radius: 6px;
+          }
+
+          .slider-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            font-size: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          }
+        </style>
+
+        <div style="position: relative; max-width: 100%; margin: 0 auto;">
+          <button id="slideLeft" class="button is-white slider-btn" style="left: -20px;">&#10094;</button>
+
+          <div id="results-slider" class="custom-slider">
+            <div class="item">
+              <img src="./images/saunetv2/results.png" alt="Segmentation results on DRIVE">
+            </div>
+            <div class="item">
+              <img src="./images/saunetv2/results_more.png" alt="Segmentation results comparison">
+            </div>
+          </div>
+
+          <button id="slideRight" class="button is-white slider-btn" style="right: -20px;">&#10095;</button>
+        </div>
+
+        <script>
+          document.getElementById('slideLeft').onclick = function () {
+            document.getElementById('results-slider').scrollBy({ left: -600, behavior: 'smooth' });
+          };
+          document.getElementById('slideRight').onclick = function () {
+            document.getElementById('results-slider').scrollBy({ left: 600, behavior: 'smooth' });
+          };
+        </script>
+        <p class="has-text-centered" style="margin-top: 15px; font-size: 0.9em; color: #555;">Qualitative comparison of retinal vessel segmentation: SA-UNet vs. SA-UNetv2.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="section">
+    <div class="container is-max-desktop">
+
+      <div class="columns is-centered">
+        <div class="column is-full">
+          <h2 class="title is-3">Loss Function Analysis</h2>
+          <div class="content has-text-justified">
+            <p>
+              Retinal vessel segmentation faces extreme class imbalance (vessels occupy &lt; 10% of the area). We introduce a differentiable <strong>Matthews Correlation Coefficient (MCC) loss</strong> combined with Binary Cross-Entropy (BCE). This formulation enforces pixel-level accuracy and global consistency, enhancing sensitivity to thin, low-contrast vessels while preserving high specificity.
+            </p>
+          </div>
+          <div class="table-container">
+            <table class="table is-fullwidth is-striped is-hoverable">
+              <thead>
+                <tr>
+                  <th>Loss Function (Weight)</th>
+                  <th>F1 (%)</th>
+                  <th>Jacc (%)</th>
+                  <th>Sen (%)</th>
+                  <th>Spe (%)</th>
+                  <th>ACC (%)</th>
+                  <th>MCC (%)</th>
+                  <th>AUC (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>BCE (1.0)</td>
+                  <td>82.75</td>
+                  <td>70.60</td>
+                  <td>82.81</td>
+                  <td>98.38</td>
+                  <td>96.99</td>
+                  <td>81.21</td>
+                  <td>98.70</td>
+                </tr>
+                <tr>
+                  <td>MCC (1.0)</td>
+                  <td>82.73</td>
+                  <td>70.56</td>
+                  <td>84.35</td>
+                  <td>98.16</td>
+                  <td>96.93</td>
+                  <td>81.17</td>
+                  <td>91.71</td>
+                </tr>
+                <tr class="is-selected">
+                  <td><strong>BCE+MCC (0.5,0.5)</strong></td>
+                  <td><strong>82.82</strong></td>
+                  <td><strong>70.69</strong></td>
+                  <td>83.64</td>
+                  <td>98.28</td>
+                  <td>96.98</td>
+                  <td><strong>81.27</strong></td>
+                  <td><strong>98.71</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="columns is-centered" style="margin-top: 30px;">
+        <div class="column is-full">
+          <h2 class="title is-3">Performance Comparison on DRIVE</h2>
+          
+          <h3 class="title is-4">Without FOV Mask</h3>
+          <div class="table-container">
+            <table class="table is-fullwidth is-narrow is-hoverable" style="font-size: 0.85rem;">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Pub</th>
+                  <th>F1 (%)</th>
+                  <th>Jacc (%)</th>
+                  <th>Sen (%)</th>
+                  <th>Spe (%)</th>
+                  <th>ACC (%)</th>
+                  <th>MCC (%)</th>
+                  <th>AUC (%)</th>
+                  <th>Pars (M)</th>
+                  <th>Time (s)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>U-Net</td><td>MICCAI'15</td><td>81.30</td><td>68.52</td><td>80.65</td><td>98.34</td><td>96.77</td><td>79.66</td><td>98.24</td><td>8.64</td><td>3.16</td></tr>
+                <tr><td>Attention U-Net</td><td>MIDL'18</td><td>81.47</td><td>68.76</td><td>81.24</td><td>98.30</td><td>96.78</td><td>79.84</td><td>98.22</td><td>8.65</td><td>7.74</td></tr>
+                <tr><td>AG-Net</td><td>MICCAI'19</td><td>--</td><td>69.65</td><td>81.00</td><td><strong>98.48</strong></td><td>96.92</td><td>79.84</td><td>98.56</td><td>9.34</td><td>--</td></tr>
+                <tr><td>U-Net++</td><td>TMI'20</td><td>81.18</td><td>68.34</td><td>82.40</td><td>98.07</td><td>96.67</td><td>79.50</td><td>98.44</td><td>10.20</td><td>6.95</td></tr>
+                <tr><td>PA-Filter</td><td>ISBI'20</td><td>82.61</td><td>--</td><td>--</td><td>--</td><td><strong>96.99</strong></td><td>--</td><td>98.43</td><td>2.01</td><td>--</td></tr>
+                <tr><td>UNet3+</td><td>ICASSP'20</td><td>81.46</td><td>68.74</td><td>82.02</td><td>98.18</td><td>96.75</td><td>79.79</td><td>98.47</td><td>1.97</td><td>5.29</td></tr>
+                <tr><td>ACC-UNet-Lite</td><td>MICCAI'23</td><td>81.26</td><td>68.47</td><td>82.05</td><td>98.14</td><td>96.71</td><td>79.57</td><td>98.34</td><td>9.14</td><td>4.41</td></tr>
+                <tr><td>SA-UNet</td><td>ICPR'20</td><td>82.44</td><td>70.15</td><td>83.64</td><td>98.19</td><td>96.90</td><td>80.85</td><td>98.62</td><td>0.54</td><td>1.12</td></tr>
+                <tr class="is-selected"><td><strong>SA-UNetv2</strong></td><td><strong>Ours</strong></td><td><strong>82.82</strong></td><td><strong>70.69</strong></td><td><strong>83.64</strong></td><td>98.28</td><td>96.98</td><td><strong>81.27</strong></td><td><strong>98.71</strong></td><td><strong>0.26</strong></td><td><strong>0.95</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="title is-4" style="margin-top: 20px;">With FOV Mask</h3>
+          <div class="table-container">
+            <table class="table is-fullwidth is-narrow is-hoverable" style="font-size: 0.85rem;">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Pub</th>
+                  <th>F1 (%)</th>
+                  <th>Jacc (%)</th>
+                  <th>Sen (%)</th>
+                  <th>Spe (%)</th>
+                  <th>ACC (%)</th>
+                  <th>MCC (%)</th>
+                  <th>AUC (%)</th>
+                  <th>Pars (M)</th>
+                  <th>Time (s)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>IterNet</td><td>WACV'20</td><td>82.18</td><td>--</td><td>77.91</td><td><strong>98.31</strong></td><td><strong>95.74</strong></td><td>--</td><td><strong>98.13</strong></td><td>8.25</td><td>--</td></tr>
+                <tr><td>RetinalLiteNet</td><td>CVPRW'24</td><td>80.60</td><td>67.50</td><td>78.40</td><td>98.00</td><td>--</td><td>--</td><td>97.00</td><td><strong>0.066</strong></td><td>--</td></tr>
+                <tr><td>UNetv2</td><td>ISBI'25</td><td>79.64</td><td>--</td><td>--</td><td>--</td><td>94.72</td><td>--</td><td>87.62</td><td>25.15</td><td>--</td></tr>
+                <tr><td>MamUNet</td><td>ISBI'25</td><td>81.78</td><td>--</td><td>--</td><td>--</td><td>95.36</td><td>--</td><td>90.25</td><td>16.86</td><td>--</td></tr>
+                <tr><td>SA-UNet</td><td>ICPR'20</td><td>82.46</td><td>70.18</td><td>83.67</td><td>97.25</td><td>95.49</td><td>80.00</td><td>97.94</td><td>0.54</td><td>1.12</td></tr>
+                <tr class="is-selected"><td><strong>SA-UNetv2</strong></td><td><strong>Ours</strong></td><td><strong>82.84</strong></td><td><strong>70.73</strong></td><td><strong>83.67</strong></td><td>97.39</td><td>95.61</td><td><strong>80.44</strong></td><td>98.08</td><td>0.26</td><td><strong>0.95</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="is-size-7 has-text-grey" style="margin-top: 5px;">* Inference time measured on Intel Xeon CPU @ 2.20GHz (2 cores).</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+      <h2 class="title">BibTeX</h2>
+      <pre><code>@inproceedings{guo2025saunetv2,
+  author    = {Guo, Changlu and Christensen, Anders Nymark and Dahl, Anders Bjorholm and Yi, Yugen and Hannemose, Morten Rieger},
+  title     = {SA-UNetv2: Rethinking Spatial Attention U-Net for Retinal Vessel Segmentation},
+  booktitle = {Proceedings of the IEEE International Symposium on Biomedical Imaging (ISBI)},
+  year      = {2026},
+}</code></pre>
+    </div>
+  </section>
+
+
+  <footer class="footer">
+    <div class="container">
+      <div class="content has-text-centered">
+        <a class="icon-link" href="https://arxiv.org/pdf/2509.11774">
+          <i class="fas fa-file-pdf"></i>
+        </a>
+        <a class="icon-link" href="https://github.com/clguo/SA-UNetv2" class="external-link" disabled>
+          <i class="fab fa-github"></i>
+        </a>
+      </div>
+      <div class="columns is-centered">
+        <div class="column is-8">
+          <div class="content">
+            <p>
+              This website is licensed under a <a rel="license"
+                href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+                Commons Attribution-ShareAlike 4.0 International License</a>.
+            </p>
+            <p>
+              This means you are free to borrow the <a href="https://github.com/nerfies/nerfies.github.io">source
+                code</a> of this website,
+              we just ask that you link back to this page in the footer.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+
+</html>
