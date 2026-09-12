@@ -221,4 +221,3 @@ Now that the baseline model is fully reproduced and verified, we can implement t
 | **2. Predictive Uncertainty Calibration** | Shannon entropy map $U = -[p \log p + (1-p) \log(1-p)]$ | Identifies low-confidence vessel boundaries for clinical verification |
 | **3. Uncertainty-Weighted Compound Loss** | Dynamic loss weighting by voxel uncertainty | Focuses gradient backpropagation on hard, ambiguous vessel boundaries to push F1 past $83\%$ |
 | **4. Feature Prototype Clustering** | Foreground vessel / background tissue prototype centroids | Prevents confusing retinal lesions (drusen, exudates) with blood vessels |
-erw
