@@ -215,6 +215,22 @@ Visual inspection confirms that our reproduced SA-UNetv2 produces clean, clinica
 - **Binary Vessel Predictions:** [`results/predictions/`](file:///c:/Users/Student/Arth%20Patel/Btep/results/predictions) (`01_test_pred.png` to `20_test_pred.png`)
 - **Neon Green Diagnostic Overlays:** [`results/overlays/`](file:///c:/Users/Student/Arth%20Patel/Btep/results/overlays) (`01_test_overlay.png` to `20_test_overlay.png`)
 - **Complete Visual Panels (Image + Ground Truth + Prediction + Overlay):** [`results/visual_comparisons/01_complete_comparison.png`](file:///c:/Users/Student/Arth%20Patel/Btep/results/visual_comparisons/01_complete_comparison.png)
+- **STARE Predictions & Visual Comparisons:** [`results/stare/visual_comparisons/`](file:///c:/Users/Student/Arth%20Patel/Btep/results/stare/visual_comparisons)
+- **Terminal Execution Verification Screenshots:**
+  - DRIVE Benchmark Terminal Screenshot: [`results/terminal_output_drive.png`](file:///c:/Users/Student/Arth%20Patel/Btep/results/terminal_output_drive.png)
+  - STARE Benchmark Terminal Screenshot: [`results/terminal_output_stare.png`](file:///c:/Users/Student/Arth%20Patel/Btep/results/terminal_output_stare.png)
+
+---
+
+## 9. Official Terminal Evaluation Run Screenshots
+
+These terminal screenshots provide exact timestamped execution verification for weekly supervisor and lab progress reporting:
+
+### DRIVE Dataset Evaluation Output (`py evaluate_test.py`)
+![DRIVE Terminal Output](file:///c:/Users/Student/Arth%20Patel/Btep/results/terminal_output_drive.png)
+
+### STARE Dataset Evaluation Output (`py evaluate_stare.py`)
+![STARE Terminal Output](file:///c:/Users/Student/Arth%20Patel/Btep/results/terminal_output_stare.png)
 
 ---
 
