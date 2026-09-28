@@ -132,6 +132,10 @@ def get_stare_dataloaders(benchmark_dir="Stare data/benchmark_20",
         alt_dir = os.path.join("..", benchmark_dir)
         if os.path.exists(alt_dir):
             benchmark_dir = alt_dir
+        else:
+            alt_dir2 = os.path.join("..", "..", benchmark_dir)
+            if os.path.exists(alt_dir2):
+                benchmark_dir = alt_dir2
 
     img_dir = os.path.join(benchmark_dir, "images")
     lbl_dir = os.path.join(benchmark_dir, "labels")

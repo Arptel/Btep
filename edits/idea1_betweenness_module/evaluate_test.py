@@ -31,8 +31,12 @@ def run_evaluation(
         if os.path.exists(alt_path):
             model_path = alt_path
         else:
-            print(f"Error: Model checkpoint '{model_path}' not found!")
-            return
+            alt_path2 = os.path.join("..", "..", model_path)
+            if os.path.exists(alt_path2):
+                model_path = alt_path2
+            else:
+                print(f"Error: Model checkpoint '{model_path}' not found!")
+                return
 
     # Load model
     model = SA_UNetv2().to(device)
