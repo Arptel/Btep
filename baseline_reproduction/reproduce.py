@@ -4,7 +4,10 @@ import time
 import torch
 from torch.utils.data import DataLoader
 
-sys.path.insert(0, 'src')
+src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
 from model import SA_UNetv2, count_parameters
 from dataset import get_drive_datasets
 from train import train_sa_unetv2

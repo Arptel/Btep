@@ -122,6 +122,10 @@ def get_drive_datasets(base_dir, val_ratio=0.1, random_seed=42, repeat=1):
     """
     Discovers DRIVE dataset paths and creates train, val, test datasets.
     """
+    if not os.path.exists(base_dir):
+        alt_dir = os.path.join("..", base_dir)
+        if os.path.exists(alt_dir):
+            base_dir = alt_dir
     train_img_dir = os.path.join(base_dir, "training", "images")
     train_lbl_dir = os.path.join(base_dir, "training", "1st_manual")
     train_msk_dir = os.path.join(base_dir, "training", "mask")

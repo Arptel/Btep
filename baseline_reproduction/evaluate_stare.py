@@ -83,6 +83,11 @@ def evaluate_stare_model(
     print(f" Device: {device_name.upper()}")
     print("=" * 65)
 
+    if not os.path.exists(checkpoint_path):
+        alt_ckpt = os.path.join("..", checkpoint_path)
+        if os.path.exists(alt_ckpt):
+            checkpoint_path = alt_ckpt
+
     # 1. Load Model
     model = SA_UNetv2(in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.0).to(device)
     ckpt = torch.load(checkpoint_path, map_location=device)

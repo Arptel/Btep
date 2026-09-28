@@ -4,49 +4,68 @@ import time
 import torch
 from torch.utils.data import DataLoader
 
-sys.path.insert(0, 'src')
-from model import SA_UNetv2
+src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+from model import SA_UNetv2, count_parameters
 from dataset import get_drive_datasets
+from train import train_sa_unetv2
 from evaluate import evaluate_model
 
 
-def run_evaluation(
-    model_path="checkpoints/best_sa_unetv2.pth",
-    data_dir="Drive/DRIVE",
-    output_dir="results",
-    threshold=0.5
-):
-    print("=" * 70)
-    print(" EVALUATING REPRODUCED SA-UNetv2 ON TEST SET (20 Images)")
-    print("=" * 70)
+def run_reproduction():
+    print("=" * 70, flush=True)
+    print(" REPRODUCING BASELINE MODEL: SA-UNetv2 (ISBI 2026)", flush=True)
+    print(" Paper: Rethinking Spatial Attention U-Net for Retinal Vessel Segmentation", flush=True)
+    print("=" * 70, flush=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Accelerator: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
+    print(f"Accelerator: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})", flush=True)
 
-    if not os.path.exists(model_path):
-        print(f"Error: Model checkpoint '{model_path}' not found!")
-        return
-
-    # Load model
+    # Step 1: Model verification
     model = SA_UNetv2().to(device)
-    checkpoint = torch.load(model_path, map_location=device)
+    num_params = count_parameters(model)
+    print(f"Model: SA-UNetv2 | Trainable Parameters: {num_params / 1e6:.4f}M ({num_params:,})", flush=True)
+    assert 250000 <= num_params <= 270000, f"Unexpected parameter count: {num_params}"
+    print("Architecture parameter count verified (~0.26M)!", flush=True)
+
+    # Step 2: Training
+    print("\n" + "-" * 50)
+    print(" Step 2: Training SA-UNetv2 on DRIVE Dataset")
+    print("-" * 50)
+    best_ckpt_path = train_sa_unetv2(
+        data_dir="Drive/DRIVE",
+        epochs=150,
+        batch_size=8,
+        lr=1e-3,
+        val_ratio=0.1,
+        patience_early_stop=20,
+        patience_lr_plateau=10,
+        save_dir="checkpoints"
+    )
+
+    # Step 3: Evaluation
+    print("\n" + "-" * 50)
+    print(" Step 3: Comprehensive Test Evaluation on 20 Test Images")
+    print("-" * 50)
+    checkpoint = torch.load(best_ckpt_path, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
-    print(f"Loaded checkpoint trained to Epoch {checkpoint.get('epoch', 'N/A')} (Best Val Loss: {checkpoint.get('val_loss', 'N/A'):.4f})")
+    print(f"Loaded best checkpoint from epoch {checkpoint['epoch']} (Val Loss: {checkpoint['val_loss']:.4f})")
 
-    # Load test set
-    _, _, test_ds = get_drive_datasets(data_dir)
+    _, _, test_ds = get_drive_datasets("Drive/DRIVE")
     test_loader = DataLoader(test_ds, batch_size=1, shuffle=False, num_workers=0)
-    print(f"Evaluating {len(test_ds)} test images...")
 
+    # Measure latency
     start_lat = time.time()
     res_no_fov, res_with_fov = evaluate_model(
-        model, test_loader, device, output_dir=output_dir, threshold=threshold
+        model, test_loader, device, output_dir="results", threshold=0.5
     )
     total_inf_time = time.time() - start_lat
     avg_inf_per_img = total_inf_time / len(test_ds)
 
     print("\n" + "=" * 70)
-    print(" REPRODUCTION BENCHMARK VS. ISBI 2026 PAPER (Table 1)")
+    print(" REPRODUCTION RESULTS VS. ISBI 2026 PAPER (Table 1)")
     print("=" * 70)
     
     print("\n[Protocol A: WITHOUT FOV Mask]")
@@ -85,9 +104,9 @@ def run_evaluation(
             print(f"{m_name:<18} | {p_val:<18.2f} | {r_val:<18.2f} | {sign}{diff:<11.2f}")
 
     print(f"\nAverage Inference Time: {avg_inf_per_img * 1000:.1f} ms / image on {device}")
-    print(f"Predictions and visual masks saved to: {output_dir}/predictions/")
+    print(f"Predictions and visual masks saved to: results/predictions/")
     print("=" * 70)
 
 
 if __name__ == '__main__':
-    run_evaluation()
+    run_reproduction()
