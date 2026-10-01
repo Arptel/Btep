@@ -152,12 +152,49 @@ Trained and benchmarked:
 
 ---
 
-## 5. Next Steps Available for Execution
+## 5. Actionable Implementation Roadmap (Upcoming Priority Queue)
 
-1. **Idea 2: Topo-CSA Architectural Track:**
-   * Implement anisotropic directional strip pooling (`1x15` and `15x1`) inside the Cross-Scale Attention skip connections in `src/model.py` as specified in [`edits/idea2_topo_csa/README.md`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/idea2_topo_csa/README.md).
-2. **Commit & Push All Progress:**
-   * Commit newly updated journey log, continuation notes, DRIVE table render scripts, and visual comparison assets to Git remote.
+The agreed next steps are prioritized into two clean, systematic engineering tracks:
+
+### TRACK 1: Loss Function Progression & Ablations (`cw-BCE`)
+
+#### Sub-step 1A: Standalone `cw-BCE` (Without clDice or cw-clDice)
+* **Mathematical Objective:**
+  $$\mathcal{L}_{\text{standalone\_cw-BCE}} = 0.5 \cdot \mathcal{L}_{\text{cw-BCE}} + 0.5 \cdot \mathcal{L}_{\text{MCC}}$$
+  where:
+  $$\mathcal{L}_{\text{cw-BCE}} = -\frac{1}{N} \sum_{(x, y)} W(x, y) \cdot \left[ y \log(p) + (1 - y) \log(1 - p) \right]$$
+* **Scientific Hypothesis:** Isolates the exact contribution of caliber weighting on the primary area loss alone. Tests whether the network recovers fine capillaries **without requiring any soft morphological skeletonizer ($K=4$)**, providing a drop-in loss for standard medical segmentation frameworks.
+* **Code Implementation Targets:**
+  1. Add `ConductanceWeightedBCELoss` to [`edits/cw_cldice/losses.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/cw_cldice/losses.py).
+  2. Add training flag `--loss_mode cw_bce_only` in [`edits/cw_cldice/train.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/cw_cldice/train.py) and [`edits/cw_cldice/train_stare.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/cw_cldice/train_stare.py).
+  3. Train and benchmark metrics on STARE/DRIVE: quantify F1, Sensitivity, and clDice gains vs. baseline.
+
+#### Sub-step 1B: Compound `cw-BCE` + `cw-clDice` (Unified Caliber Supervision)
+* **Mathematical Objective:**
+  $$\mathcal{L}_{\text{unified}} = 0.5 \cdot \mathcal{L}_{\text{cw-BCE}} + 0.5 \cdot \mathcal{L}_{\text{MCC}} + 0.2 \cdot \mathcal{L}_{\text{cw-clDice}}$$
+* **Scientific Hypothesis:** Delivers simultaneous caliber supervision on both the **2D lumen volume** (via `cw-BCE`) and the **1D topological centerline** (via `cw-clDice`), closing the diameter imbalance across all loss terms.
+* **Code Implementation Targets:**
+  1. Update `CompoundCwclDiceLoss` to combine both terms.
+  2. Train and benchmark on STARE/DRIVE; add as the headline ablation row in the comparison tables.
+
+---
+
+### TRACK 2: Architectural Innovation — CAD-Topo-CSA (Idea 2 Latest Specification)
+
+#### Design Principle: Pure Curvilinear Geometry (Strictly NO Conductance Gimmicks)
+To avoid unnecessary complexity, auxiliary loss balancing, and test-time dependency traps, the architecture is grounded **strictly in geometric multi-scale receptive fields**:
+
+* **Architectural Blueprint:**
+  Inside the Cross-Scale Attention (CSA) skip connections:
+  1. **Branch 1 (Wide Trunks):** $7 \times 7$ isotropic square convolution. Preserves crisp boundary margins of main arterial trunks without edge blurring.
+  2. **Branch 2 (Thin Capillaries):** Parallel $1 \times 21$ horizontal strip pooling + $21 \times 1$ vertical strip pooling. Reaches across long-distance optical dropouts along capillary trajectories.
+  3. **Router (Self-Learned Channel Gate):** A lightweight Squeeze-and-Excitation (SE) channel attention block ($< 1,200$ params) that automatically routes high-frequency spatial channels through the $1\times 21$ strips and wide-context channels through the $7\times 7$ box.
+  4. **Strict Invariant:** **$0$ external conductance inputs, $0$ auxiliary losses, and $100\%$ autonomous inference at test time.**
+* **Code Implementation Targets:**
+  1. Create `CADTopoCSAModule` in [`edits/idea2_topo_csa/cad_topo_csa.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/idea2_topo_csa/cad_topo_csa.py).
+  2. Integrate into `src/model.py` behind a modular toggle (`--use_topo_csa`).
+  3. Verify parameter footprint ($< 263,000$ params, $< 1.5\%$ increase) and GPU latency ($< 22\text{ ms}$).
+  4. Evaluate end-to-end performance on DRIVE and STARE.
 
 ---
 
