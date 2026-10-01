@@ -736,9 +736,69 @@ Our STARE reproduction is within **0.37%** of the paper — essentially matching
 
 ---
 
-### Q: "What will you do next?"
+### Q: "What was your novel contribution beyond reproducing SA-UNetv2?"
 
-> *"Phase 2 implements novel extensions from the ACE-ProtoNet companion paper (Medical Image Analysis 2026):*
-> 1. ***Centerline Dice (clDice):** A topological loss that penalizes vascular tree disconnections by comparing vessel skeletons.*
-> 2. ***Uncertainty Calibration:** Using Shannon entropy maps to visualize and quantify prediction confidence on ambiguous vessel boundaries.*
-> 3. ***Uncertainty-Weighted Loss:** Dynamically increasing the loss weight on uncertain, hard boundary pixels to push accuracy higher."*
+> *"We conducted an exhaustive topological connectivity audit using CVPR 2021 metrics and discovered that the baseline SA-UNetv2 suffered from severe vascular tree fragmentation — over 43× more disconnected components than ground truth (82.05 stumps vs 3.0 GT). Standard pixel losses (BCE, MCC) lack topological branch continuity penalties.*
+>
+> *After investigating post-processing resistor circuits (Idea 1) and proving why they fail on open dendritic trees, we derived **Conductance-Weighted clDice (`cw-clDice`)**: an end-to-end training loss that inverts Hagen-Poiseuille fluid physics ($W \propto (r_{\max} - r)^\beta$) to concentrate a 3.5× backpropagation gradient boost directly on thin, fragile micro-capillaries.*
+>
+> *On the STARE benchmark, our 3-way comparative study proved that vanilla clDice (CVPR 2021) actually increased disconnected fragments (+0.50), whereas our `cw-clDice` reduced fragments by -6.50 and boosted Topology Sensitivity by +3.20% over baseline and +1.64% over vanilla clDice."*
+
+---
+
+# PART G: DEFENSE OF NOVEL LOSS, MATRIX MECHANICS & SOTA LITERATURE (cbDice)
+
+---
+
+### Q: "What is this precomputed weight matrix you talk about? Is the difference between clDice and your work just a matrix, and how do you get it?"
+
+> *"The matrix $W(x, y)$ is a physiological conductance weight map. In vanilla clDice (CVPR 2021), every centerline pixel is given an identical weight of 1.0. Because thick central vessels have hundreds of times more pixels than thin capillaries, standard gradient descent is dominated by thick trunks and neglects faint capillaries.*
+>
+> *We compute $W(x, y)$ using the exact Euclidean Distance Transform (EDT) on ground truth vessel masks: $R_{\text{gt}}(x, y) = \text{EDT}(V_{\text{gt}})$. Along vessel centerlines, this gives the exact radius in pixels. We then invert Poiseuille hydraulic resistance ($R_{\text{flow}} \propto 1/r^4$) into a smooth scaling function:*
+> $$W(x, y) = 1.0 + \alpha \cdot \left(\frac{r_{\max} - R_{\text{gt}}(x, y)}{r_{\max} - r_{\min} + \epsilon}\right)^\beta$$
+> *During training, this matrix is precomputed once during dataset loading, cached in RAM, and multiplied inside the autograd computation graph. It gives thin degree-1 capillaries a 3.50× higher reconnection gradient boost during backpropagation.*
+>
+> *So yes, mathematically the difference is this conductance weighting matrix, but scientifically it represents the transition from generic uniform geometry to **hemodynamic physics-informed supervision**."*
+
+---
+
+### Q: "What about testing? How do you generate the matrix at test time without ground truth?"
+
+> *"**We do NOT generate or use the matrix at test time.** At test time, ground truth masks do not exist in clinical practice, and our model does NOT require them.*
+>
+> *The weight matrix $W(x, y)$ is **strictly an autograd loss weighting modifier used during training backpropagation**. Its sole job is to guide how the optimizer updates the network's convolutional filters $\mathbf{\theta}$.*
+>
+> *Once training is finished, the weights $\mathbf{\theta}^*$ are frozen. At test time, the model executes a standard feed-forward convolutional pass: $\hat{Y} = \text{model}(X)$. There is **zero matrix generation, zero distance transform, zero skeletonization, zero graph operations, and zero overhead** at inference. The model runs in 20.2 ms on GPU and 259,960 parameters."*
+
+---
+
+### Q: "Another recent paper is cbDice (MICCAI 2024). How is your work different from cbDice, and is yours novel?"
+
+> *"Both works recognize that vanilla clDice (CVPR 2021) has limitations regarding vessel calibers. However, the similarities end there:
+> 1. **Theoretical Origin:** `cbDice` (Shi et al., MICCAI 2024) is a metric-space boundary translation penalty based on Boundary Difference over Union (B-DoU). Our `cw-clDice` is derived from **hemodynamic fluid transport physics** (Hagen-Poiseuille resistance $R_{\text{flow}} \propto 1/r^4$), born directly out of our forensic discovery that retinal vessels are open dendritic trees where peripheral capillaries represent high-resistance terminal leaves.
+> 2. **Target Problem:** `cbDice` targets boundary translation offset (surface distance / NSD). Our work specifically targets **topological tree shattering and Betti-0 fragmentation ($\beta_0$)**, where baseline SA-UNetv2 had 43× fragmentation. On STARE, vanilla clDice worsened fragmentation (+0.50), while `cw-clDice` eliminated -6.50 fragments.
+> 3. **Architectural & Clinical Target:** `cbDice` evaluated on heavy **nnU-Net V2 (~30 million parameters)** requiring high-end GPU workstations. Our work operates on an ultra-compact edge network (**0.26 million parameters, 115× smaller**) achieving real-time 20.2 ms inference deployable on portable fundus cameras in rural clinics."*
+
+---
+
+### Q: "What factors worsened when you added cw-clDice?"
+
+> *"In an honest scientific evaluation, we observed a minor trade-off in **Topology Precision ($T_{\text{prec}}$)**, which shifted from $91.72\% \to 90.60\%$ (-1.12%) on DRIVE and $93.24\% \to 91.70\%$ (-1.54%) on STARE.
+>
+> This occurs because the 3.5× gradient boost makes the network aggressive at detecting faint micro-capillaries near optical noise boundaries, causing a slight increase in boundary false positives.
+>
+> However, **Specificity remained rock-solid at $>97.1\%$ on DRIVE and $>98.4\%$ on STARE**, and in medical screening, capturing disconnected capillaries (Recall / Sensitivity) is far more clinically critical than a tiny 1% precision drop at 1-pixel widths."*
+
+---
+
+### Q: "This is a 9-credit Capstone course (worth 15–20 hours/week for 16 weeks). How does this project justify that scope?"
+
+> *"The work encompasses the full lifecycle of an applied deep learning research thesis:
+> 1. Complete re-engineering and reproduction of a recent top-tier baseline (ISBI 2026 Oral) from legacy TensorFlow to PyTorch 2.6.0 with exact parameter matching.
+> 2. Discovery of a fundamental limitation in current retinal segmentation literature: 43× topological fragmentation under pixel losses.
+> 3. Formulation, implementation, and scientific failure post-mortem of a physical circuit graph post-processor (Idea 1), including AUROC edge-length diagnostics.
+> 4. Formulation, mathematical proof, and implementation of a novel loss function (`cw-clDice`) with precomputed RAM caching.
+> 5. Multi-dataset validation (DRIVE) and rigorous 3-way comparative benchmarking (STARE) demonstrating superiority over CVPR 2021 clDice.
+> 6. State-of-the-art literature audit against MICCAI 2024 (cbDice) and mapping 4 cross-domain generalization horizons (pulmonary CT, neuronal connectomics, dynamic Topo-CSA).
+>
+> We have structured this complete body of work into a 16-week chronological curriculum mapped directly to our college's weekly report submission system."*
