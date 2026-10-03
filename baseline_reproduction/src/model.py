@@ -111,9 +111,12 @@ class SA_UNetv2(nn.Module):
     SA-UNetv2: Rethinking Spatial Attention U-Net for Retinal Vessel Segmentation (ISBI 2026).
     Parameters: ~0.26M
     Channels: 16 -> 32 -> 48 -> 64
+    Optionally supports CAD-Topo-CSA (Idea 2) for multi-scale directional skip gating.
     """
-    def __init__(self, in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15, block_size=7):
+    def __init__(self, in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15,
+                 block_size=7, use_cad_topo_csa=False):
         super(SA_UNetv2, self).__init__()
+        self.use_cad_topo_csa = use_cad_topo_csa
         c1 = start_neurons * 1  # 16
         c2 = start_neurons * 2  # 32
         c3 = start_neurons * 3  # 48
@@ -137,21 +140,34 @@ class SA_UNetv2(nn.Module):
         self.bottleneck_sa = SpatialAttention(kernel_size=7)
         self.bottleneck_2 = ConvBlock(c4, c4, drop_prob, block_size)
 
+        # --- Helper for CSA Skip Modules ---
+        if use_cad_topo_csa:
+            try:
+                from cad_topo_csa import CADTopoCSAModule
+            except ImportError:
+                import sys, os
+                topo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "edits", "idea2_topo_csa"))
+                sys.path.insert(0, topo_dir)
+                from cad_topo_csa import CADTopoCSAModule
+            csa_fn = lambda: CADTopoCSAModule(trunk_kernel=7, strip_length=21)
+        else:
+            csa_fn = lambda: CrossScaleSpatialAttention(kernel_size=7)
+
         # --- Decoder Stage 3 ---
         self.up3 = nn.ConvTranspose2d(c4, c3, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.csa3 = CrossScaleSpatialAttention(kernel_size=7)
+        self.csa3 = csa_fn()
         self.dec3_1 = ConvBlock(c3 * 2, c3, drop_prob, block_size)
         self.dec3_2 = ConvBlock(c3, c3, drop_prob, block_size)
 
         # --- Decoder Stage 2 ---
         self.up2 = nn.ConvTranspose2d(c3, c2, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.csa2 = CrossScaleSpatialAttention(kernel_size=7)
+        self.csa2 = csa_fn()
         self.dec2_1 = ConvBlock(c2 * 2, c2, drop_prob, block_size)
         self.dec2_2 = ConvBlock(c2, c2, drop_prob, block_size)
 
         # --- Decoder Stage 1 ---
         self.up1 = nn.ConvTranspose2d(c2, c1, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.csa1 = CrossScaleSpatialAttention(kernel_size=7)
+        self.csa1 = csa_fn()
         self.dec1_1 = ConvBlock(c1 * 2, c1, drop_prob, block_size)
         self.dec1_2 = ConvBlock(c1, c1, drop_prob, block_size)
 

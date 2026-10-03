@@ -2,7 +2,7 @@
 
 > **Research Track:** Architectural Innovation on SA-UNetv2  
 > **Status:** Architecture Design (Refined Multi-Scale Specification)  
-> **Target Module:** Skip Connections in SA-UNetv2 ([`src/model.py`](file:///d:/Desktop/ARTH/Sem-8/I2/src/model.py))  
+> **Target Module:** Skip Connections in SA-UNetv2 ([`src/model.py`](file:///c:/Users/Student/Arth Patel/Btep/src/model.py))  
 
 ---
 

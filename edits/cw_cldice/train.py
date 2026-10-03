@@ -37,15 +37,45 @@ def train_sa_unetv2_cwcldice(
     patience_early_stop=15,
     patience_lr_plateau=7,
     init_from_baseline=True,
+    loss_mode="cw_cldice",
     save_dir="checkpoints",
+    save_name=None,
     device_name="cuda" if torch.cuda.is_available() else "cpu"
 ):
     os.makedirs(save_dir, exist_ok=True)
     device = torch.device(device_name)
+
+    # Configure loss parameters based on loss_mode
+    if loss_mode == "cw_bce_only":
+        use_cw_bce = True
+        eff_lambda_cw = 0.0
+        mode_desc = "Standalone cw-BCE (Sub-step 1A: 0.5*cw-BCE + 0.5*MCC, lambda_cw=0.0)"
+        default_save_name = "best_sa_unetv2_cwbce.pth"
+    elif loss_mode == "unified":
+        use_cw_bce = True
+        eff_lambda_cw = lambda_cw
+        mode_desc = f"Unified Caliber (Sub-step 1B: 0.5*cw-BCE + 0.5*MCC + {lambda_cw}*cw-clDice)"
+        default_save_name = "best_sa_unetv2_unified.pth"
+    elif loss_mode == "vanilla_cldice":
+        use_cw_bce = False
+        eff_lambda_cw = lambda_cw
+        alpha = 0.0
+        mode_desc = f"Vanilla clDice (0.5*BCE + 0.5*MCC + {lambda_cw}*clDice, alpha=0.0)"
+        default_save_name = "best_sa_unetv2_cldice.pth"
+    else:  # 'cw_cldice'
+        use_cw_bce = False
+        eff_lambda_cw = lambda_cw
+        mode_desc = f"cw-clDice (0.5*BCE + 0.5*MCC + {lambda_cw}*cw-clDice, alpha={alpha}, beta={beta})"
+        default_save_name = "best_sa_unetv2_cwcldice.pth"
+
+    target_save_name = save_name if save_name is not None else default_save_name
+    save_path = os.path.join(save_dir, target_save_name)
+
     print("=" * 65)
-    print(" TRAINING SA-UNetv2 WITH CONDUCTANCE-WEIGHTED clDice (cw-clDice)")
+    print(" TRAINING SA-UNetv2 WITH LOSS MODE:", loss_mode.upper())
     print(f" Device: {device_name.upper()} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
-    print(f" Loss: 0.5*BCE + 0.5*MCC + {lambda_cw}*cw-clDice (alpha={alpha}, beta={beta})")
+    print(f" Objective: {mode_desc}")
+    print(f" Target Checkpoint: {save_path}")
     print(f" Batch Size: {batch_size} | Epochs: {epochs} | Initial LR: {lr:.2e}")
     print("=" * 65, flush=True)
 
@@ -76,8 +106,8 @@ def train_sa_unetv2_cwcldice(
     # 4. Optimizer, Criterion & Scheduler
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = CompoundCwclDiceLoss(
-        lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=lambda_cw,
-        num_skel_iter=4, alpha=alpha, beta=beta
+        lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=eff_lambda_cw,
+        use_cw_bce=use_cw_bce, num_skel_iter=4, alpha=alpha, beta=beta
     )
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=patience_lr_plateau, min_lr=1e-6
@@ -86,7 +116,6 @@ def train_sa_unetv2_cwcldice(
     best_val_loss = float('inf')
     best_epoch = 0
     epochs_no_improve = 0
-    save_path = os.path.join(save_dir, "best_sa_unetv2_cwcldice.pth")
 
     start_time = time.time()
 
@@ -180,6 +209,10 @@ if __name__ == '__main__':
     parser.add_argument("--lambda_cw", type=float, default=0.2, help="Weight of cw-clDice loss")
     parser.add_argument("--alpha", type=float, default=2.0, help="Capillary boost factor")
     parser.add_argument("--beta", type=float, default=1.5, help="Decay curvature exponent")
+    parser.add_argument("--loss_mode", type=str, default="cw_cldice",
+                        choices=["cw_cldice", "cw_bce_only", "unified", "vanilla_cldice"],
+                        help="Loss objective paradigm")
+    parser.add_argument("--save_name", type=str, default=None, help="Custom filename for best checkpoint")
     parser.add_argument("--scratch", action="store_true", help="Train from scratch rather than warm-start")
     args = parser.parse_args()
 
@@ -190,5 +223,7 @@ if __name__ == '__main__':
         lambda_cw=args.lambda_cw,
         alpha=args.alpha,
         beta=args.beta,
+        loss_mode=args.loss_mode,
+        save_name=args.save_name,
         init_from_baseline=not args.scratch
     )

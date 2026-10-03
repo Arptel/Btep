@@ -37,20 +37,45 @@ def train_stare_cwcldice(
     repeat=2,
     patience_early_stop=15,
     patience_lr_plateau=7,
+    loss_mode="cw_cldice",
+    use_cad_topo_csa=False,
     init_checkpoint="checkpoints/best_sa_unetv2_stare.pth",
-    save_path="checkpoints/best_sa_unetv2_stare_cwcldice.pth",
+    save_path=None,
     device_name="cuda" if torch.cuda.is_available() else "cpu"
 ):
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     device = torch.device(device_name)
-    mode_name = "vanilla clDice (alpha=0)" if alpha == 0.0 else f"cw-clDice (alpha={alpha}, beta={beta})"
+
+    if loss_mode == "cw_bce_only":
+        use_cw_bce = True
+        eff_lambda_cw = 0.0
+        mode_desc = "Standalone cw-BCE (Sub-step 1A: 0.5*cw-BCE + 0.5*MCC, lambda_cw=0.0)"
+        default_save_path = "checkpoints/best_sa_unetv2_stare_cwbce.pth"
+    elif loss_mode == "unified":
+        use_cw_bce = True
+        eff_lambda_cw = lambda_cw
+        mode_desc = f"Unified Caliber (Sub-step 1B: 0.5*cw-BCE + 0.5*MCC + {lambda_cw}*cw-clDice)"
+        default_save_path = "checkpoints/best_sa_unetv2_stare_unified.pth"
+    elif loss_mode == "vanilla_cldice":
+        use_cw_bce = False
+        eff_lambda_cw = lambda_cw
+        alpha = 0.0
+        mode_desc = f"Vanilla clDice (0.5*BCE + 0.5*MCC + {lambda_cw}*clDice, alpha=0.0)"
+        default_save_path = "checkpoints/best_sa_unetv2_stare_cldice.pth"
+    else:  # cw_cldice
+        use_cw_bce = False
+        eff_lambda_cw = lambda_cw
+        mode_desc = f"cw-clDice (0.5*BCE + 0.5*MCC + {lambda_cw}*cw-clDice, alpha={alpha}, beta={beta})"
+        default_save_path = "checkpoints/best_sa_unetv2_stare_cwcldice.pth"
+
+    target_save_path = save_path if save_path is not None else default_save_path
+    os.makedirs(os.path.dirname(target_save_path), exist_ok=True)
 
     print("=" * 68)
-    print(f" TRAINING SA-UNetv2 ON STARE WITH {mode_name.upper()}")
+    print(f" TRAINING SA-UNetv2 ON STARE WITH LOSS MODE: {loss_mode.upper()}")
     print(f" Device: {device_name.upper()} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
-    print(f" Loss: 0.5*BCE + 0.5*MCC + {lambda_cw}*clDice ({mode_name})")
+    print(f" Objective: {mode_desc}")
     print(f" Batch Size: {batch_size} | Epochs: {epochs} | Initial LR: {lr:.2e}")
-    print(f" Target Checkpoint: {save_path}")
+    print(f" Target Checkpoint: {target_save_path}")
     print("=" * 68, flush=True)
 
     # 1. Datasets & Loaders
@@ -65,24 +90,28 @@ def train_stare_cwcldice(
     print(f"[*] Validation samples: {len(val_loader.dataset)} | Test samples: {len(test_loader.dataset)}")
 
     # 2. Model
-    model = SA_UNetv2(in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15, block_size=7).to(device)
+    model = SA_UNetv2(in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15, block_size=7, use_cad_topo_csa=use_cad_topo_csa).to(device)
     total_params = count_parameters(model)
-    print(f"[*] Model parameters: {total_params / 1e6:.4f}M ({total_params:,} parameters)")
+    arch_name = "SA-UNetv2 + CAD-Topo-CSA" if use_cad_topo_csa else "Baseline SA-UNetv2"
+    print(f"[*] Architecture: {arch_name} | Parameters: {total_params / 1e6:.4f}M ({total_params:,})")
 
     # 3. Warm-Start from STARE Baseline Weights
     if os.path.exists(init_checkpoint):
         print(f"[*] Warm-starting weights from baseline: {init_checkpoint}")
         ckpt = torch.load(init_checkpoint, map_location=device, weights_only=False)
         state_dict = ckpt['model_state_dict'] if 'model_state_dict' in ckpt else ckpt
-        model.load_state_dict(state_dict)
-        print("-> Baseline weights loaded successfully!")
+        res = model.load_state_dict(state_dict, strict=not use_cad_topo_csa)
+        if use_cad_topo_csa:
+            print(f"-> Warm-started backbone! (Missing keys initialized: {len(res.missing_keys)})")
+        else:
+            print("-> Baseline weights loaded successfully!")
     else:
         print(f"[!] Warning: Initial checkpoint {init_checkpoint} not found. Training from scratch.")
 
     # 4. Criterion, Optimizer, Scheduler
     criterion = CompoundCwclDiceLoss(
-        lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=lambda_cw,
-        num_skel_iter=4, alpha=alpha, beta=beta
+        lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=eff_lambda_cw,
+        use_cw_bce=use_cw_bce, num_skel_iter=4, alpha=alpha, beta=beta
     )
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -92,6 +121,7 @@ def train_stare_cwcldice(
     best_val_loss = float('inf')
     best_epoch = 0
     epochs_no_improve = 0
+    save_path = target_save_path
     start_time = time.time()
 
     for epoch in range(1, epochs + 1):
@@ -191,7 +221,12 @@ if __name__ == '__main__':
     parser.add_argument("--alpha", type=float, default=2.0, help="Capillary boost factor (0.0 for vanilla clDice)")
     parser.add_argument("--beta", type=float, default=1.5, help="Decay curvature exponent")
     parser.add_argument("--repeat", type=int, default=2, help="Dataset repeat multiplier per epoch")
-    parser.add_argument("--save_path", type=str, default="checkpoints/best_sa_unetv2_stare_cwcldice.pth")
+    parser.add_argument("--loss_mode", type=str, default="cw_cldice",
+                        choices=["cw_cldice", "cw_bce_only", "unified", "vanilla_cldice"],
+                        help="Loss objective paradigm")
+    parser.add_argument("--use_cad_topo_csa", action="store_true",
+                        help="Enable CAD-Topo-CSA multi-scale skip attention")
+    parser.add_argument("--save_path", type=str, default=None)
     args = parser.parse_args()
 
     train_stare_cwcldice(
@@ -202,5 +237,7 @@ if __name__ == '__main__':
         alpha=args.alpha,
         beta=args.beta,
         repeat=args.repeat,
+        loss_mode=args.loss_mode,
+        use_cad_topo_csa=args.use_cad_topo_csa,
         save_path=args.save_path
     )

@@ -2,7 +2,7 @@
 
 > **Research Track:** Novel Objective Function Formulation (Bridging Fluid Dynamics with Topological Deep Learning)  
 > **Status:** Architecture Design & Implementation Blueprint (Option 1)  
-> **Target Module:** [`edits/src/losses.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/src/losses.py) and Training Engine [`edits/src/train.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/src/train.py)  
+> **Target Module:** [`edits/src/losses.py`](file:///c:/Users/Student/Arth Patel/Btep/edits/src/losses.py) and Training Engine [`edits/src/train.py`](file:///c:/Users/Student/Arth Patel/Btep/edits/src/train.py)  
 
 ---
 
@@ -98,7 +98,7 @@ where $\lambda_{\text{cw}} \in [0.1, 0.3]$ balances pixel-wise alignment with to
 ## 3. Step-by-Step Implementation Roadmap
 
 ### Step 1: Implementation of `ConductanceWeightedclDiceLoss`
-* File: [`edits/src/losses.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/src/losses.py)
+* File: [`edits/src/losses.py`](file:///c:/Users/Student/Arth Patel/Btep/edits/src/losses.py)
 * Classes to implement:
   * `SoftSkeletonize(nn.Module)`: Differentiable morphological pooling.
   * `ConductanceWeightedclDiceLoss(nn.Module)`: Forward pass computing $T_{\text{prec}}^{\text{cw}}$, $T_{\text{sens}}^{\text{cw}}$, and backpropagation gradients.
@@ -109,7 +109,7 @@ where $\lambda_{\text{cw}} \in [0.1, 0.3]$ balances pixel-wise alignment with to
   1. Binary skeleton $S_{\text{gt}}$ via medial-axis skeletonization (`skimage.morphology.skeletonize`).
   2. Euclidean distance transform $R_{\text{gt}}$ (`scipy.ndimage.distance_transform_edt`).
   3. Conductance weight map $W(x, y)$.
-* Cache these as `.npy` tensors during dataset loading in [`edits/src/dataset.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/src/dataset.py) to guarantee **zero runtime latency overhead during training epochs**.
+* Cache these as `.npy` tensors during dataset loading in [`edits/src/dataset.py`](file:///c:/Users/Student/Arth Patel/Btep/edits/src/dataset.py) to guarantee **zero runtime latency overhead during training epochs**.
 
 ### Step 3: Unit Verification Suite
 * Create `edits/tests/test_cw_cldice.py`:
@@ -118,7 +118,7 @@ where $\lambda_{\text{cw}} \in [0.1, 0.3]$ balances pixel-wise alignment with to
   * Verify that breaking a 1-pixel capillary produces a significantly higher gradient penalty than under standard BCE/Dice.
 
 ### Step 4: Experimental Training Run (DRIVE Benchmark)
-* Runner: [`edits/reproduce.py`](file:///d:/Desktop/ARTH/Sem-8/I2/edits/reproduce.py)
+* Runner: [`edits/reproduce.py`](file:///c:/Users/Student/Arth Patel/Btep/edits/reproduce.py)
 * Train for 150 epochs using Adam ($lr = 10^{-3}$) on GPU.
 * Save experimental checkpoint: `edits/checkpoints/best_sa_unetv2_cwcldice.pth`.
 

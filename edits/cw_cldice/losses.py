@@ -167,26 +167,63 @@ class ContinuousMCCLoss(nn.Module):
         return 1.0 - mcc
 
 
+class ConductanceWeightedBCELoss(nn.Module):
+    """
+    Conductance-Weighted Binary Cross-Entropy (cw-BCE) Loss.
+    Scales pixel-level BCE penalty by physiological caliber weight map W(x, y).
+
+    L_cw-BCE = - (1 / N) * sum( W(x, y) * [ y * log(p + eps) + (1 - y) * log(1 - p + eps) ] )
+
+    When W(x, y) = 1.0 (uniform), reduces identically to standard nn.BCELoss().
+    Capillaries (r ~ 1 px) receive an alpha-scaled gradient boost (2.5x - 3.5x).
+    """
+    def __init__(self, eps=1e-7):
+        super(ConductanceWeightedBCELoss, self).__init__()
+        self.eps = eps
+
+    def forward(self, y_pred, y_true, weight_map=None):
+        y_pred = torch.clamp(y_pred, self.eps, 1.0 - self.eps)
+        bce_pixel = -(y_true * torch.log(y_pred) + (1.0 - y_true) * torch.log(1.0 - y_pred))
+        if weight_map is not None:
+            loss = torch.mean(weight_map * bce_pixel)
+        else:
+            loss = torch.mean(bce_pixel)
+        return loss
+
+
 class CompoundCwclDiceLoss(nn.Module):
     """
-    Unified Compound Objective:
-    L_total = lambda_bce * L_BCE + lambda_mcc * L_MCC + lambda_cw * L_cw-clDice
-    Default: 0.5 * BCE + 0.5 * MCC + 0.2 * cw-clDice
+    Unified Compound Objective supporting multiple research tracks & ablations:
+    1. 'cw_cldice' (Default):  0.5 * BCE + 0.5 * MCC + lambda_cw * cw-clDice
+    2. 'cw_bce_only' (1A):     0.5 * cw-BCE + 0.5 * MCC (no centerline skeletonizer)
+    3. 'unified' (1B):         0.5 * cw-BCE + 0.5 * MCC + lambda_cw * cw-clDice (both 2D and 1D caliber weighted)
+    4. 'vanilla_cldice':       0.5 * BCE + 0.5 * MCC + lambda_cw * clDice (alpha=0.0)
     """
     def __init__(self, lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=0.2,
-                 num_skel_iter=4, alpha=2.0, beta=1.5, eps=1e-7):
+                 use_cw_bce=False, num_skel_iter=4, alpha=2.0, beta=1.5, eps=1e-7):
         super(CompoundCwclDiceLoss, self).__init__()
         self.lambda_bce = lambda_bce
         self.lambda_mcc = lambda_mcc
         self.lambda_cw = lambda_cw
-        self.bce = nn.BCELoss()
+        self.use_cw_bce = use_cw_bce
+        self.standard_bce = nn.BCELoss()
+        self.cw_bce = ConductanceWeightedBCELoss(eps=eps)
         self.mcc = ContinuousMCCLoss(eps=eps)
         self.cw_cldice = ConductanceWeightedclDiceLoss(num_iter=num_skel_iter, alpha=alpha, beta=beta, eps=eps)
 
     def forward(self, y_pred, y_true, s_gt=None, weight_map=None, distance_map=None):
-        loss_bce = self.bce(y_pred, y_true)
+        if self.use_cw_bce and weight_map is not None:
+            loss_bce = self.cw_bce(y_pred, y_true, weight_map=weight_map)
+        else:
+            loss_bce = self.standard_bce(y_pred, y_true)
+
         loss_mcc = self.mcc(y_pred, y_true)
-        loss_cw, cw_score, t_sens, t_prec = self.cw_cldice(y_pred, y_true, s_gt, weight_map, distance_map)
+
+        if self.lambda_cw > 0:
+            loss_cw, cw_score, t_sens, t_prec = self.cw_cldice(y_pred, y_true, s_gt, weight_map, distance_map)
+        else:
+            loss_cw = torch.tensor(0.0, device=y_pred.device)
+            cw_score = torch.tensor(1.0, device=y_pred.device)
 
         loss_total = (self.lambda_bce * loss_bce +
                       self.lambda_mcc * loss_mcc +
