@@ -54,7 +54,7 @@ def train_stare_cwcldice(
         use_cw_bce = True
         eff_lambda_cw = lambda_cw
         mode_desc = f"Unified Caliber (Sub-step 1B: 0.5*cw-BCE + 0.5*MCC + {lambda_cw}*cw-clDice)"
-        default_save_path = "checkpoints/best_sa_unetv2_stare_unified.pth"
+        default_save_path = "checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth" if use_cad_topo_csa else "checkpoints/best_sa_unetv2_stare_unified.pth"
     elif loss_mode == "vanilla_cldice":
         use_cw_bce = False
         eff_lambda_cw = lambda_cw
@@ -226,8 +226,17 @@ if __name__ == '__main__':
                         help="Loss objective paradigm")
     parser.add_argument("--use_cad_topo_csa", action="store_true",
                         help="Enable CAD-Topo-CSA multi-scale skip attention")
+    parser.add_argument("--init_checkpoint", type=str, default=None,
+                        help="Initial checkpoint to warm-start weights from")
     parser.add_argument("--save_path", type=str, default=None)
     args = parser.parse_args()
+
+    init_ckpt = args.init_checkpoint
+    if init_ckpt is None:
+        if args.use_cad_topo_csa and os.path.exists("checkpoints/best_sa_unetv2_stare_cadtocsa.pth"):
+            init_ckpt = "checkpoints/best_sa_unetv2_stare_cadtocsa.pth"
+        else:
+            init_ckpt = "checkpoints/best_sa_unetv2_stare.pth"
 
     train_stare_cwcldice(
         epochs=args.epochs,
@@ -239,5 +248,6 @@ if __name__ == '__main__':
         repeat=args.repeat,
         loss_mode=args.loss_mode,
         use_cad_topo_csa=args.use_cad_topo_csa,
+        init_checkpoint=init_ckpt,
         save_path=args.save_path
     )

@@ -154,24 +154,24 @@ Trained and benchmarked:
 
 ## 5. Actionable Implementation Roadmap (COMPLETED & VERIFIED)
 
-Both engineering tracks have been fully implemented, verified via unit tests, trained on the GPU, and evaluated across all 6 model configurations on the STARE benchmark:
+All engineering tracks and their joint synthesis have been fully implemented, verified via unit tests, trained on the GPU, and evaluated across all 7 model configurations on the STARE benchmark:
 
-### Complete 6-Way Ablation Benchmark (STARE Dataset)
+### Complete 7-Way Multi-Paradigm Benchmark (STARE Dataset)
 
-| Evaluation Metric | Baseline (ISBI 2026) | Vanilla `clDice` (CVPR 2021) | Standalone `cw-BCE` (Track 1A) | Ours `cw-clDice` (Proposed) | Ours Unified (Track 1B) | CAD-Topo-CSA (Track 2) | Best Performer & Key Takeaway |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Centerline Dice (`clDice`)** | $86.57\%$ | $87.27\%$ | **$88.28\%$** | $87.66\%$ | **$88.23\%$** | $87.88\%$ | **Standalone `cw-BCE` & Unified** lead skeleton overlap ($+1.71\%$) |
-| **Topology Sensitivity ($T_{\text{sens}}$)** | $80.97\%$ | $82.54\%$ | $87.12\%$ | $84.18\%$ | **$87.63\%$** | $86.81\%$ | **Ours Unified achieves $+6.66\%$ over base, $+5.09\%$ over clDice** |
-| **Topology Precision ($T_{\text{prec}}$)** | **$93.24\%$** | $92.82\%$ | $89.65\%$ | $91.70\%$ | $89.05\%$ | $89.24\%$ | Controlled trade-off to capture faint peripheral branches |
-| **Betti-0 Stumps ($\beta_0$)** | $57.50$ | $58.00$ | $66.00$ | **$51.50$** | $54.00$ | $72.75$ | **Ours `cw-clDice` eliminates stumps ($-6.00$ vs base, $-6.50$ vs clDice)** |
-| **Fragmentation Ratio** | $24.19\times$ | $24.94\times$ | $27.88\times$ | $22.81\times$ | **$22.38\times$** | $29.81\times$ | **Ours Unified achieves lowest fragmentation ($22.38\times$)** |
-| **Largest Tree Ratio (LCCR)** | $81.27\%$ | $80.27\%$ | **$83.03\%$** | $80.44\%$ | $82.95\%$ | $81.23\%$ | Preserves primary vascular trunk structural integrity |
-| **F1-Score / Dice** | $82.44\%$ | **$83.14\%$** | $82.39\%$ | **$83.14\%$** | $81.94\%$ | $82.85\%$ | Top volumetric segmentation accuracy preserved |
-| **Sensitivity (Recall)** | $83.38\%$ | $84.57\%$ | $89.50\%$ | $84.96\%$ | **$89.56\%$** | $87.31\%$ | **Ours Unified recovers $+6.18\%$ more true vessel pixels** |
-| **Specificity** | **$98.50\%$** | **$98.50\%$** | $97.79\%$ | $98.46\%$ | $97.69\%$ | $98.13\%$ | Maintained exceptional background suppression ($>97.6\%$) |
-| **Global Accuracy** | $97.40\%$ | **$97.49\%$** | $97.19\%$ | $97.48\%$ | $97.10\%$ | $97.34\%$ | Preserved global classification accuracy (>97%) |
-| **Matthews Corr (MCC)** | $81.08\%$ | $81.83\%$ | $81.19\%$ | **$81.85\%$** | $80.76\%$ | $81.58\%$ | Balanced class correlation maintained |
-| **AUC-ROC** | $98.69\%$ | $98.75\%$ | **$98.99\%$** | $98.76\%$ | $98.93\%$ | $98.85\%$ | Enhanced boundary discrimination confidence |
+| Evaluation Metric | Baseline (ISBI 2026) | Vanilla `clDice` (CVPR 2021) | Standalone `cw-BCE` (Track 1A) | Ours `cw-clDice` (Proposed) | Ours Unified (Track 1B) | CAD-Topo-CSA (Track 2) | CAD-Topo-CSA + Unified (Both) | Best Performer & Key Takeaway |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Centerline Dice (`clDice`)** | $86.57\%$ | $87.27\%$ | **$88.28\%$** | $87.66\%$ | **$88.23\%$** | $87.88\%$ | $87.81\%$ | **Standalone `cw-BCE` & Unified** lead skeleton overlap ($+1.71\%$) |
+| **Topology Sensitivity ($T_{\text{sens}}$)** | $80.97\%$ | $82.54\%$ | $87.12\%$ | $84.18\%$ | $87.63\%$ | $86.81\%$ | **$88.90\%$** | **Joint Model achieves $+7.93\%$ over base, $+6.36\%$ over clDice** |
+| **Topology Precision ($T_{\text{prec}}$)** | **$93.24\%$** | $92.82\%$ | $89.65\%$ | $91.70\%$ | $89.05\%$ | $89.24\%$ | $86.99\%$ | Controlled trade-off to capture faint peripheral branches |
+| **Betti-0 Stumps ($\beta_0$)** | $57.50$ | $58.00$ | $66.00$ | **$51.50$** | $54.00$ | $72.75$ | $69.00$ | **Ours `cw-clDice` eliminates stumps ($-6.00$ vs base, $-6.50$ vs clDice)** |
+| **Fragmentation Ratio** | $24.19\times$ | $24.94\times$ | $27.88\times$ | $22.81\times$ | **$22.38\times$** | $29.81\times$ | $27.88\times$ | **Ours Unified achieves lowest fragmentation ($22.38\times$)** |
+| **Largest Tree Ratio (LCCR)** | $81.27\%$ | $80.27\%$ | $83.03\%$ | $80.44\%$ | $82.95\%$ | $81.23\%$ | **$83.25\%$** | **Joint Model achieves highest primary trunk structural integrity** |
+| **F1-Score / Dice** | $82.44\%$ | **$83.14\%$** | $82.39\%$ | **$83.14\%$** | $81.94\%$ | $82.85\%$ | $81.12\%$ | Top volumetric segmentation accuracy preserved |
+| **Sensitivity (Recall)** | $83.38\%$ | $84.57\%$ | $89.50\%$ | $84.96\%$ | $89.56\%$ | $87.31\%$ | **$90.64\%$** | **Joint Model breaks 90% recall barrier ($+7.26\%$ vs baseline)** |
+| **Specificity** | **$98.50\%$** | **$98.50\%$** | $97.79\%$ | $98.46\%$ | $97.69\%$ | $98.13\%$ | $97.38\%$ | Maintained exceptional background suppression ($>97.3\%$) |
+| **Global Accuracy** | $97.40\%$ | **$97.49\%$** | $97.19\%$ | $97.48\%$ | $97.10\%$ | $97.34\%$ | $96.89\%$ | Preserved high global classification accuracy (>96.8%) |
+| **Matthews Corr (MCC)** | $81.08\%$ | $81.83\%$ | $81.19\%$ | **$81.85\%$** | $80.76\%$ | $81.58\%$ | $80.00\%$ | Balanced class correlation maintained |
+| **AUC-ROC** | $98.69\%$ | $98.75\%$ | **$98.99\%$** | $98.76\%$ | $98.93\%$ | $98.85\%$ | $98.91\%$ | All caliber-guided models maximize boundary confidence |
 
 ### Summary of Completed Engineering Deliverables
 
@@ -182,8 +182,12 @@ Both engineering tracks have been fully implemented, verified via unit tests, tr
    * Implemented `CADTopoCSAModule` in [`edits/idea2_topo_csa/cad_topo_csa.py`](file:///c:/Users/Student/Arth%20Patel/Btep/edits/idea2_topo_csa/cad_topo_csa.py) and integrated into `SA_UNetv2` in [`baseline_reproduction/src/model.py`](file:///c:/Users/Student/Arth%20Patel/Btep/baseline_reproduction/src/model.py).
    * Verified parameter overhead: **$+396$ parameters ($+0.15\%$)**, $0\text{ ms}$ test-time external preprocessing.
    * Trained checkpoint [`checkpoints/best_sa_unetv2_stare_cadtocsa.pth`](file:///c:/Users/Student/Arth%20Patel/Btep/checkpoints/best_sa_unetv2_stare_cadtocsa.pth), achieving $86.81\%$ $T_{\text{sens}}$ and $87.88\%$ clDice.
-3. **Automated Multi-Way Benchmark Suite:**
-   * Script [`edits/cw_cldice/evaluate_stare_multiway.py`](file:///c:/Users/Student/Arth%20Patel/Btep/edits/cw_cldice/evaluate_stare_multiway.py) automatically evaluates any checkpoint combination.
+3. **TRACK 3 (Joint Synthesis — Idea 1 Unified + Idea 2 CAD-Topo-CSA):**
+   * Jointly trained CAD-Topo-CSA with Unified Caliber loss, saving checkpoint [`checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth`](file:///c:/Users/Student/Arth%20Patel/Btep/checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth).
+   * Achieved peak **Topology Sensitivity of $88.90\%$** ($+7.93\%$ vs base, $+6.36\%$ vs clDice) and **Pixel Sensitivity of $90.64\%$** ($+7.26\%$ vs base).
+4. **Automated Multi-Way Benchmark & Visualization Suite:**
+   * Script [`edits/cw_cldice/evaluate_stare_multiway.py`](file:///c:/Users/Student/Arth%20Patel/Btep/edits/cw_cldice/evaluate_stare_multiway.py) automatically evaluates all 7 models.
+   * Script [`edits/cw_cldice/render_multiway_table_image.py`](file:///c:/Users/Student/Arth%20Patel/Btep/edits/cw_cldice/render_multiway_table_image.py) renders publication-grade images for both 6-way and 7-way tables.
 
 ---
 

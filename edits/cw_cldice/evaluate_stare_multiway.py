@@ -129,6 +129,7 @@ def run_multiway_benchmark(threshold=0.5, device_name="cuda" if torch.cuda.is_av
         ("Ours cw-clDice", "checkpoints/best_sa_unetv2_stare_cwcldice.pth"),
         ("Ours Unified (1B)", "checkpoints/best_sa_unetv2_stare_unified.pth"),
         ("CAD-Topo-CSA (Track 2)", "checkpoints/best_sa_unetv2_stare_cadtocsa.pth"),
+        ("CAD-Topo-CSA + Unified (Both)", "checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth"),
     ]
 
     results = {}
