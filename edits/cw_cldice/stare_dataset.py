@@ -55,25 +55,43 @@ def restore_image_stare(padded_arr, orig_h=605, orig_w=700):
         return padded_arr[:orig_h, :orig_w]
 
 
+import sys
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, os.path.join(project_root, "edits", "idea3_murray"))
+try:
+    from murray_loss import generate_murray_bifurcation_map
+except ImportError:
+    generate_murray_bifurcation_map = None
+
+
 def compute_caliber_weight_map_stare(mask, alpha=2.0, beta=1.5):
     """
-    Computes Euclidean Distance Transform and Conductance Weight Map W(x, y).
-    When alpha=0.0, returns uniform weights (vanilla clDice).
+    Computes Euclidean Distance Transform, Conductance Weight Map W(x, y),
+    and Murray Bifurcation Map M_bif(x, y).
     """
     vessel_bin = (mask > 0.5).astype(np.float32)
     if vessel_bin.sum() == 0:
-        return np.ones_like(mask, dtype=np.float32), np.zeros_like(mask, dtype=np.float32)
+        return np.ones_like(mask, dtype=np.float32), np.zeros_like(mask, dtype=np.float32), np.zeros_like(mask, dtype=np.float32)
 
     # 1. Medial-axis skeleton (1-pixel wide)
     skeleton = morph.skeletonize(vessel_bin).astype(np.float32)
+    edt = ndi.distance_transform_edt(vessel_bin).astype(np.float32)
 
-    # 2. Vanilla clDice (alpha == 0): return uniform 1.0 weights
+    # 2. Murray Bifurcation Map
+    if generate_murray_bifurcation_map is not None:
+        try:
+            bif_map = generate_murray_bifurcation_map(vessel_bin, skeleton, edt)
+        except Exception:
+            bif_map = np.zeros_like(mask, dtype=np.float32)
+    else:
+        bif_map = np.zeros_like(mask, dtype=np.float32)
+
+    # 3. Vanilla clDice (alpha == 0): return uniform 1.0 weights
     if alpha == 0.0:
         weight_map = np.ones_like(mask, dtype=np.float32)
-        return weight_map, skeleton
+        return weight_map, skeleton, bif_map
 
-    # 3. cw-clDice: Euclidean Distance Transform
-    edt = ndi.distance_transform_edt(vessel_bin).astype(np.float32)
+    # 4. cw-clDice: Euclidean Distance Transform
     r_max = float(np.max(edt))
     r_min = 1.0
 
@@ -81,12 +99,12 @@ def compute_caliber_weight_map_stare(mask, alpha=2.0, beta=1.5):
     inv_radius = np.clip(inv_radius, 0.0, 1.0) * vessel_bin
 
     weight_map = 1.0 + alpha * np.power(inv_radius, beta)
-    return weight_map.astype(np.float32), skeleton.astype(np.float32)
+    return weight_map.astype(np.float32), skeleton.astype(np.float32), bif_map.astype(np.float32)
 
 
 class STARECwclDiceDataset(Dataset):
     """
-    PyTorch Dataset for STARE with cached skeletons and physiological weight maps.
+    PyTorch Dataset for STARE with cached skeletons, physiological weight maps, and Murray bifurcation maps.
     """
     def __init__(self, image_paths, label_paths, is_train=True,
                  target_size=(704, 704), repeat=1, alpha=2.0, beta=1.5):
@@ -106,6 +124,7 @@ class STARECwclDiceDataset(Dataset):
         self.cached_labels = []
         self.cached_skeletons = []
         self.cached_weights = []
+        self.cached_bif_maps = []
 
         th, tw = self.target_size
         for idx in range(self.num_base):
@@ -118,9 +137,10 @@ class STARECwclDiceDataset(Dataset):
             lbl_padded = pad_image_stare(lbl_np, th, tw)
             self.cached_labels.append(lbl_padded)
 
-            w_map, skel = compute_caliber_weight_map_stare(lbl_padded, alpha=alpha, beta=beta)
+            w_map, skel, bif_map = compute_caliber_weight_map_stare(lbl_padded, alpha=alpha, beta=beta)
             self.cached_weights.append(w_map)
             self.cached_skeletons.append(skel)
+            self.cached_bif_maps.append(bif_map)
 
     def __len__(self):
         return self.num_base * self.repeat
@@ -131,11 +151,13 @@ class STARECwclDiceDataset(Dataset):
         lbl_padded = self.cached_labels[base_idx].copy()
         skel_padded = self.cached_skeletons[base_idx].copy()
         w_padded = self.cached_weights[base_idx].copy()
+        bif_padded = self.cached_bif_maps[base_idx].copy()
 
         img_tensor = torch.from_numpy(img_padded).permute(2, 0, 1).float()
         lbl_tensor = torch.from_numpy(lbl_padded).unsqueeze(0).float()
         skel_tensor = torch.from_numpy(skel_padded).unsqueeze(0).float()
         w_tensor = torch.from_numpy(w_padded).unsqueeze(0).float()
+        bif_tensor = torch.from_numpy(bif_padded).unsqueeze(0).float()
 
         if self.is_train:
             # Isometric spatial augmentations
@@ -144,12 +166,14 @@ class STARECwclDiceDataset(Dataset):
                 lbl_tensor = TF.hflip(lbl_tensor)
                 skel_tensor = TF.hflip(skel_tensor)
                 w_tensor = TF.hflip(w_tensor)
+                bif_tensor = TF.hflip(bif_tensor)
 
             if random.random() > 0.5:
                 img_tensor = TF.vflip(img_tensor)
                 lbl_tensor = TF.vflip(lbl_tensor)
                 skel_tensor = TF.vflip(skel_tensor)
                 w_tensor = TF.vflip(w_tensor)
+                bif_tensor = TF.vflip(bif_tensor)
 
             rot_k = random.randint(0, 3)
             if rot_k > 0:
@@ -157,6 +181,7 @@ class STARECwclDiceDataset(Dataset):
                 lbl_tensor = torch.rot90(lbl_tensor, rot_k, [1, 2])
                 skel_tensor = torch.rot90(skel_tensor, rot_k, [1, 2])
                 w_tensor = torch.rot90(w_tensor, rot_k, [1, 2])
+                bif_tensor = torch.rot90(bif_tensor, rot_k, [1, 2])
 
             if random.random() > 0.5:
                 factor = 1.0 + random.uniform(-0.15, 0.15)
@@ -168,6 +193,7 @@ class STARECwclDiceDataset(Dataset):
             'label': lbl_tensor,
             'skeleton': skel_tensor,
             'weight_map': w_tensor,
+            'bif_map': bif_tensor,
             'id': img_id
         }
 

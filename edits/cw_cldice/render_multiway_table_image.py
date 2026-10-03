@@ -1,6 +1,6 @@
 """
 Script to render a high-resolution, publication-quality image of the Multi-Paradigm STARE Comparison Table
-comparing all 7 paradigms including the joint Idea 1 (Unified) + Idea 2 (CAD-Topo-CSA) model.
+comparing all 8 paradigms including Idea 1, Idea 2, and Idea 3 (Murray's Law).
 """
 import os
 import matplotlib.pyplot as plt
@@ -16,27 +16,28 @@ headers = [
     "Ours Unified\n(Track 1B)",
     "CAD-Topo-CSA\n(Track 2)",
     "CAD-Topo-CSA + Unified\n(Idea 1 + Idea 2)",
+    "CAD-Topo-CSA + Murray\n(Idea 1 + 2 + 3)",
     "Key Scientific Takeaway"
 ]
 
 rows = [
     # Topological Connectivity
-    ["Topological\nConnectivity", "Centerline Dice (clDice)", "86.57%", "87.27%", "88.28%", "87.66%", "88.23%", "87.88%", "87.81%", "cw-BCE & Unified achieve peak skeleton overlap (+1.71%)"],
-    ["", "Topology Sensitivity (Tsens)", "80.97%", "82.54%", "87.12%", "84.18%", "87.63%", "86.81%", "88.90%", "Idea 1 + Idea 2 leads all models: 88.90% (+7.93% vs base, +6.36% vs clDice)"],
-    ["", "Topology Precision (Tprec)", "93.24%", "92.82%", "89.65%", "91.70%", "89.05%", "89.24%", "86.99%", "Controlled trade-off capturing previously undetected micro-vessels"],
-    ["", "Betti-0 Stumps (beta0)", "57.50", "58.00", "66.00", "51.50", "54.00", "72.75", "69.00", "cw-clDice eliminates stumps (-6.00 vs base, -6.50 vs clDice)"],
-    ["", "Fragmentation Ratio", "24.19x", "24.94x", "27.88x", "22.81x", "22.38x", "29.81x", "27.88x", "Ours Unified achieves lowest fragmentation ratio (22.38x)"],
-    ["", "Largest Tree Ratio (LCCR)", "81.27%", "80.27%", "83.03%", "80.44%", "82.95%", "81.23%", "83.25%", "Idea 1 + Idea 2 achieves highest main vascular trunk continuity (83.25%)"],
+    ["Topological\nConnectivity", "Centerline Dice (clDice)", "86.57%", "87.27%", "88.28%", "87.66%", "88.23%", "87.88%", "87.81%", "88.02%", "cw-BCE & Unified achieve peak skeleton overlap (+1.71%)"],
+    ["", "Topology Sensitivity (Tsens)", "80.97%", "82.54%", "87.12%", "84.18%", "87.63%", "86.81%", "88.90%", "87.99%", "Joint Model leads all models: 88.90% (+7.93% vs base)"],
+    ["", "Topology Precision (Tprec)", "93.24%", "92.82%", "89.65%", "91.70%", "89.05%", "89.24%", "86.99%", "88.27%", "Murray regularizer improves junction precision (+1.28%)"],
+    ["", "Betti-0 Stumps (beta0)", "57.50", "58.00", "66.00", "51.50", "54.00", "72.75", "69.00", "63.25", "cw-clDice eliminates stumps (-6.00 vs base, -6.50 vs clDice)"],
+    ["", "Fragmentation Ratio", "24.19x", "24.94x", "27.88x", "22.81x", "22.38x", "29.81x", "27.88x", "24.88x", "Ours Unified achieves lowest fragmentation ratio (22.38x)"],
+    ["", "Largest Tree Ratio (LCCR)", "81.27%", "80.27%", "83.03%", "80.44%", "82.95%", "81.23%", "83.25%", "83.23%", "CAD-Topo-CSA unifies primary continuous vascular trunks"],
     # Pixel Metrics
-    ["Pixel Overlap\n& Quality", "F1-Score / Dice", "82.44%", "83.14%", "82.39%", "83.14%", "81.94%", "82.85%", "81.12%", "Top volumetric segmentation accuracy preserved across all models"],
-    ["", "Sensitivity (Recall)", "83.38%", "84.57%", "89.50%", "84.96%", "89.56%", "87.31%", "90.64%", "Idea 1 + Idea 2 breaks 90% milestone (+7.26% vs base, +6.07% vs clDice)"],
-    ["", "Specificity", "98.50%", "98.50%", "97.79%", "98.46%", "97.69%", "98.13%", "97.38%", "Sustains exceptional background non-vessel suppression (>97.3%)"],
-    ["", "Global Accuracy", "97.40%", "97.49%", "97.19%", "97.48%", "97.10%", "97.34%", "96.89%", "Preserved high global classification accuracy (>96.8%)"],
-    ["", "Matthews Corr (MCC)", "81.08%", "81.83%", "81.19%", "81.85%", "80.76%", "81.58%", "80.00%", "cw-clDice leads balanced correlation on imbalanced pixels"],
-    ["", "AUC-ROC", "98.69%", "98.75%", "98.99%", "98.76%", "98.93%", "98.85%", "98.91%", "Caliber-guided models uniformly maximize boundary discriminative confidence"]
+    ["Pixel Overlap\n& Quality", "F1-Score / Dice", "82.44%", "83.14%", "82.39%", "83.14%", "81.94%", "82.85%", "81.12%", "81.83%", "High volumetric segmentation accuracy preserved"],
+    ["", "Sensitivity (Recall)", "83.38%", "84.57%", "89.50%", "84.96%", "89.56%", "87.31%", "90.64%", "89.68%", "Joint Models break 90% milestone (+7.26% vs base)"],
+    ["", "Specificity", "98.50%", "98.50%", "97.79%", "98.46%", "97.69%", "98.13%", "97.38%", "97.65%", "Sustains exceptional background non-vessel suppression (>97.3%)"],
+    ["", "Global Accuracy", "97.40%", "97.49%", "97.19%", "97.48%", "97.10%", "97.34%", "96.89%", "97.07%", "Preserved high global classification accuracy (>96.8%)"],
+    ["", "Matthews Corr (MCC)", "81.08%", "81.83%", "81.19%", "81.85%", "80.76%", "81.58%", "80.00%", "80.64%", "cw-clDice leads balanced correlation on imbalanced pixels"],
+    ["", "AUC-ROC", "98.69%", "98.75%", "98.99%", "98.76%", "98.93%", "98.85%", "98.91%", "98.92%", "Caliber-guided models uniformly maximize boundary confidence"]
 ]
 
-fig, ax = plt.subplots(figsize=(29, 11.5), dpi=300)
+fig, ax = plt.subplots(figsize=(32, 12), dpi=300)
 ax.axis('off')
 ax.axis('tight')
 
@@ -48,27 +49,26 @@ table = ax.table(
 )
 
 table.auto_set_font_size(False)
-table.set_fontsize(10)
+table.set_fontsize(9.5)
 
-# 10 columns total: width sum = 1.0
-col_widths = [0.08, 0.15, 0.075, 0.08, 0.085, 0.08, 0.08, 0.08, 0.09, 0.20]
+# 11 columns total: width sum = 1.0
+col_widths = [0.08, 0.14, 0.07, 0.075, 0.08, 0.075, 0.075, 0.075, 0.08, 0.08, 0.18]
 for i, width in enumerate(col_widths):
     for j in range(len(rows) + 1):
         cell = table[(j, i)]
         cell.set_width(width)
 
 # Colors
-header_color = '#0F172A'      # Deep slate / charcoal
-topo_bg_alt = '#F8FAFC'       # Subtle cool gray
+header_color = '#0F172A'
+topo_bg_alt = '#F8FAFC'
 topo_bg = '#FFFFFF'
-pixel_bg_alt = '#F0FDF4'      # Subtle light green-gray
+pixel_bg_alt = '#F0FDF4'
 pixel_bg = '#FFFFFF'
-winner_green = '#DCFCE7'      # Winner green
-winner_gold = '#FEF08A'       # Winner gold for topological king
-text_green = '#15803D'        # Forest green for highlight text
+winner_green = '#DCFCE7'
+winner_gold = '#FEF08A'
 
 # Winning cell mapping: (row, col)
-# cols: 2=Base, 3=Vanilla, 4=cwBCE, 5=cwclDice, 6=Unified, 7=CAD-Topo-CSA, 8=CAD+Unified
+# cols: 2=Base, 3=Vanilla, 4=cwBCE, 5=cwclDice, 6=Unified, 7=CAD-Topo-CSA, 8=CAD+Unified, 9=CAD+Murray
 winners = {
     0: [4],       # clDice: cw-BCE 88.28%
     1: [8],       # Tsens: CAD+Unified 88.90%
@@ -88,12 +88,11 @@ for (row_idx, col_idx), cell in table.get_celld().items():
     cell.set_edgecolor('#CBD5E1')
     cell.set_linewidth(0.8)
 
-    # Header styling
     if row_idx == 0:
         cell.set_facecolor(header_color)
         cell.get_text().set_color('white')
         cell.get_text().set_weight('bold')
-        cell.get_text().set_fontsize(10.5)
+        cell.get_text().set_fontsize(10)
         cell.set_height(0.08)
     else:
         cell.set_height(0.06)
@@ -102,16 +101,14 @@ for (row_idx, col_idx), cell in table.get_celld().items():
         base_bg = topo_bg if r % 2 == 0 else topo_bg_alt if is_topo else (pixel_bg if r % 2 == 0 else pixel_bg_alt)
         cell.set_facecolor(base_bg)
 
-        # Alignments
-        if col_idx in [1, 9]:
+        if col_idx in [1, 10]:
             cell.get_text().set_ha('left')
         elif col_idx == 0:
             cell.get_text().set_weight('bold')
             cell.get_text().set_color('#0F172A')
 
-        # Highlight winner cells
         if r in winners and col_idx in winners[r]:
-            if r in [1, 3, 7]:  # Tsens king, beta0 stump killer, Sen 90% milestone
+            if r in [1, 3, 7]:
                 cell.set_facecolor(winner_gold)
             else:
                 cell.set_facecolor(winner_green)
@@ -119,8 +116,8 @@ for (row_idx, col_idx), cell in table.get_celld().items():
             cell.get_text().set_color('#14532D')
 
 plt.title(
-    "STARE Benchmark: Multi-Paradigm 7-Way Comprehensive Evaluation\n"
-    "Evaluating Standalone Loss Innovations (cw-BCE, cw-clDice, Unified), Geometric Skip Attention (CAD-Topo-CSA), and Joint Synthesis (Both)",
+    "STARE Benchmark: Multi-Paradigm 8-Way Comprehensive Evaluation\n"
+    "Evaluating Loss-Level Caliber (Idea 1), Geometric Attention (Idea 2), and Murray's Law Bifurcation Physics (Idea 3)",
     fontsize=16,
     fontweight='bold',
     pad=24,
@@ -129,9 +126,7 @@ plt.title(
 
 out_dir = "results/stare_multiway"
 os.makedirs(out_dir, exist_ok=True)
-out_path_6way = os.path.join(out_dir, "stare_6way_comparison_table.png")
-out_path_7way = os.path.join(out_dir, "stare_7way_comparison_table.png")
-plt.savefig(out_path_6way, bbox_inches='tight', dpi=300)
-plt.savefig(out_path_7way, bbox_inches='tight', dpi=300)
+out_path_8way = os.path.join(out_dir, "stare_8way_comparison_table.png")
+plt.savefig(out_path_8way, bbox_inches='tight', dpi=300)
 plt.close()
-print(f"[+] Multi-Way Table Screenshots saved to:\n    - {out_path_6way}\n    - {out_path_7way}")
+print(f"[+] 8-Way Table Screenshot saved to: {out_path_8way}")

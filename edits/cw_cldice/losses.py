@@ -191,6 +191,23 @@ class ConductanceWeightedBCELoss(nn.Module):
         return loss
 
 
+class MurrayBifurcationLoss(nn.Module):
+    """
+    Murray's Law Bifurcation Regularization Loss (Idea 3):
+    Penalizes deviations in predicted probability specifically within vascular bifurcation zones.
+    """
+    def __init__(self, eps=1e-7):
+        super(MurrayBifurcationLoss, self).__init__()
+        self.eps = eps
+
+    def forward(self, pred_prob, target_mask, bif_map):
+        sq_err = (pred_prob - target_mask) ** 2
+        weighted_err = sq_err * bif_map
+        norm = bif_map.sum(dim=(-2, -1)) + self.eps
+        loss_per_sample = weighted_err.sum(dim=(-2, -1)) / norm
+        return loss_per_sample.mean()
+
+
 class CompoundCwclDiceLoss(nn.Module):
     """
     Unified Compound Objective supporting multiple research tracks & ablations:
@@ -198,20 +215,23 @@ class CompoundCwclDiceLoss(nn.Module):
     2. 'cw_bce_only' (1A):     0.5 * cw-BCE + 0.5 * MCC (no centerline skeletonizer)
     3. 'unified' (1B):         0.5 * cw-BCE + 0.5 * MCC + lambda_cw * cw-clDice (both 2D and 1D caliber weighted)
     4. 'vanilla_cldice':       0.5 * BCE + 0.5 * MCC + lambda_cw * clDice (alpha=0.0)
+    5. 'murray_unified' (Idea 3): Unified + lambda_murray * MurrayBifurcationLoss
     """
-    def __init__(self, lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=0.2,
+    def __init__(self, lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=0.2, lambda_murray=0.0,
                  use_cw_bce=False, num_skel_iter=4, alpha=2.0, beta=1.5, eps=1e-7):
         super(CompoundCwclDiceLoss, self).__init__()
         self.lambda_bce = lambda_bce
         self.lambda_mcc = lambda_mcc
         self.lambda_cw = lambda_cw
+        self.lambda_murray = lambda_murray
         self.use_cw_bce = use_cw_bce
         self.standard_bce = nn.BCELoss()
         self.cw_bce = ConductanceWeightedBCELoss(eps=eps)
         self.mcc = ContinuousMCCLoss(eps=eps)
         self.cw_cldice = ConductanceWeightedclDiceLoss(num_iter=num_skel_iter, alpha=alpha, beta=beta, eps=eps)
+        self.murray_loss = MurrayBifurcationLoss(eps=eps)
 
-    def forward(self, y_pred, y_true, s_gt=None, weight_map=None, distance_map=None):
+    def forward(self, y_pred, y_true, s_gt=None, weight_map=None, distance_map=None, bif_map=None):
         if self.use_cw_bce and weight_map is not None:
             loss_bce = self.cw_bce(y_pred, y_true, weight_map=weight_map)
         else:
@@ -225,8 +245,14 @@ class CompoundCwclDiceLoss(nn.Module):
             loss_cw = torch.tensor(0.0, device=y_pred.device)
             cw_score = torch.tensor(1.0, device=y_pred.device)
 
+        if self.lambda_murray > 0 and bif_map is not None:
+            loss_murray = self.murray_loss(y_pred, y_true, bif_map)
+        else:
+            loss_murray = torch.tensor(0.0, device=y_pred.device)
+
         loss_total = (self.lambda_bce * loss_bce +
                       self.lambda_mcc * loss_mcc +
-                      self.lambda_cw * loss_cw)
+                      self.lambda_cw * loss_cw +
+                      self.lambda_murray * loss_murray)
 
         return loss_total, loss_bce, loss_mcc, loss_cw, cw_score

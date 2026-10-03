@@ -53,17 +53,26 @@ def train_stare_cwcldice(
     elif loss_mode == "unified":
         use_cw_bce = True
         eff_lambda_cw = lambda_cw
+        eff_lambda_murray = 0.0
         mode_desc = f"Unified Caliber (Sub-step 1B: 0.5*cw-BCE + 0.5*MCC + {lambda_cw}*cw-clDice)"
         default_save_path = "checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth" if use_cad_topo_csa else "checkpoints/best_sa_unetv2_stare_unified.pth"
+    elif loss_mode == "murray_unified":
+        use_cw_bce = True
+        eff_lambda_cw = lambda_cw
+        eff_lambda_murray = 0.15
+        mode_desc = f"Murray-Unified (Idea 1 + Idea 3: 0.5*cw-BCE + 0.5*MCC + {lambda_cw}*cw-clDice + {eff_lambda_murray}*Murray)"
+        default_save_path = "checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth" if use_cad_topo_csa else "checkpoints/best_sa_unetv2_stare_murray.pth"
     elif loss_mode == "vanilla_cldice":
         use_cw_bce = False
         eff_lambda_cw = lambda_cw
+        eff_lambda_murray = 0.0
         alpha = 0.0
         mode_desc = f"Vanilla clDice (0.5*BCE + 0.5*MCC + {lambda_cw}*clDice, alpha=0.0)"
         default_save_path = "checkpoints/best_sa_unetv2_stare_cldice.pth"
     else:  # cw_cldice
         use_cw_bce = False
         eff_lambda_cw = lambda_cw
+        eff_lambda_murray = 0.0
         mode_desc = f"cw-clDice (0.5*BCE + 0.5*MCC + {lambda_cw}*cw-clDice, alpha={alpha}, beta={beta})"
         default_save_path = "checkpoints/best_sa_unetv2_stare_cwcldice.pth"
 
@@ -110,7 +119,7 @@ def train_stare_cwcldice(
 
     # 4. Criterion, Optimizer, Scheduler
     criterion = CompoundCwclDiceLoss(
-        lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=eff_lambda_cw,
+        lambda_bce=0.5, lambda_mcc=0.5, lambda_cw=eff_lambda_cw, lambda_murray=eff_lambda_murray,
         use_cw_bce=use_cw_bce, num_skel_iter=4, alpha=alpha, beta=beta
     )
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -138,10 +147,11 @@ def train_stare_cwcldice(
             lbls = batch['label'].to(device)
             skels = batch['skeleton'].to(device)
             weights = batch['weight_map'].to(device)
+            bifs = batch['bif_map'].to(device) if 'bif_map' in batch else None
 
             optimizer.zero_grad()
             preds = model(imgs)
-            loss, bce, mcc, cw_l, cw_s = criterion(preds, lbls, s_gt=skels, weight_map=weights)
+            loss, bce, mcc, cw_l, cw_s = criterion(preds, lbls, s_gt=skels, weight_map=weights, bif_map=bifs)
             loss.backward()
             optimizer.step()
 
@@ -169,9 +179,10 @@ def train_stare_cwcldice(
                 lbls = batch['label'].to(device)
                 skels = batch['skeleton'].to(device)
                 weights = batch['weight_map'].to(device)
+                bifs = batch['bif_map'].to(device) if 'bif_map' in batch else None
 
                 preds = model(imgs)
-                v_loss, _, _, _, v_s = criterion(preds, lbls, s_gt=skels, weight_map=weights)
+                v_loss, _, _, _, v_s = criterion(preds, lbls, s_gt=skels, weight_map=weights, bif_map=bifs)
                 val_loss += v_loss.item()
                 val_score += v_s.item()
 
@@ -222,7 +233,7 @@ if __name__ == '__main__':
     parser.add_argument("--beta", type=float, default=1.5, help="Decay curvature exponent")
     parser.add_argument("--repeat", type=int, default=2, help="Dataset repeat multiplier per epoch")
     parser.add_argument("--loss_mode", type=str, default="cw_cldice",
-                        choices=["cw_cldice", "cw_bce_only", "unified", "vanilla_cldice"],
+                        choices=["cw_cldice", "cw_bce_only", "unified", "vanilla_cldice", "murray_unified"],
                         help="Loss objective paradigm")
     parser.add_argument("--use_cad_topo_csa", action="store_true",
                         help="Enable CAD-Topo-CSA multi-scale skip attention")
