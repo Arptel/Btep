@@ -221,3 +221,40 @@ All engineering tracks and their joint synthesis have been fully implemented, ve
 | [`IDEA1_PLUGIN_BENCHMARK_COMPARISON.md`](file:///c:/Users/Student/Arth%20Patel/Btep/IDEA1_PLUGIN_BENCHMARK_COMPARISON.md) | Full empirical failure breakdown & AUROC forensic analysis of Idea 1. |
 | [`edits/idea2_topo_csa/README.md`](file:///c:/Users/Student/Arth%20Patel/Btep/edits/idea2_topo_csa/README.md) | Anisotropic directional strip attention skip connection design (Idea 2). |
 | [`PROFESSOR_VIVA_AND_DEFENSE_GUIDE.md`](file:///c:/Users/Student/Arth%20Patel/Btep/PROFESSOR_VIVA_AND_DEFENSE_GUIDE.md) | Q&A guide for professor defense, viva presentations, and thesis grading. |
+
+---
+
+## 7. Next Engineering Session: Mitigating Disconnected Pool Smears in CAD-Topo-CSA
+
+During multi-paradigm evaluation, we identified that while **CAD-Topo-CSA + Unified/Murray** breaks recall records ($>90\%$), the combination of rigid $1\times 21$ directional pooling and aggressive $3.5\times$ caliber loss smears faint background linear textures into isolated, floating binary stumps ($\beta_0 = 63.25 - 69.00$). 
+
+The following sequential roadmap outlines the next implementation and benchmarking tasks:
+
+### Step 1: Visual Inspection of Disconnected Pools in Current Final Model
+* **Goal:** Visually inspect and diagnose the exact morphology and spatial distribution of the disconnected pools.
+* **Action:**
+  * Run inference on STARE using the current final checkpoint ([`checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth`](file:///c:/Users/Student/Arth%20Patel/Btep/checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth)).
+  * Generate high-resolution fundus comparison images: Input RGB Image vs. Ground Truth vs. Predicted Binary Mask vs. Error/Component Map (color-coding connected main trunks vs. isolated floating fragments).
+  * Save to `results/stare_final_visual_comparisons/`.
+
+### Step 2: Optimal Height $h$ Search for $h \times 21$ Transverse-Contrast Strips (Idea 2 Alone)
+* **Goal:** Enable the 1D strips to perform an orthogonal contrast check (Laplacian/ridge profile $[-1, +2, -1]$) so that diffuse noise is extinguished while genuine capillaries with dark flanking background pass through.
+* **Action:**
+  * Implement configurable strip height $h \in \{1, 3, 5\}$ in `CADTopoCSAModule` (`edits/idea2_topo_csa/cad_topo_csa.py`).
+  * Train and benchmark with **only Idea 2 first** (isolated ablation, e.g. $3\times 21$ and $21\times 3$, keeping standard baseline loss and uninhibited strips).
+  * Generate fundus comparison images showing how increasing $h$ suppresses linear streak artifacts.
+
+### Step 3: Implement Orthogonal Inhibition / Cross-Strip Suppression (Idea 4 Alone)
+* **Goal:** Introduce directional competition between horizontal ($F_H$) and vertical ($F_V$) strips to suppress isotropic background noise while preserving dominant unidirectional capillaries and crossing junctions.
+* **Action:**
+  * Implement soft anisotropic gating:
+    $$w_H = \sigma\left(\text{Conv}_{1\times 1}(F_H - \gamma F_V)\right), \quad w_V = \sigma\left(\text{Conv}_{1\times 1}(F_V - \gamma F_H)\right)$$
+  * Train and benchmark with **only Idea 4 first** (on top of the $1\times 21$ baseline) to isolate the exact contribution of directional competition.
+  * Generate fundus comparison images to audit false spur suppression.
+
+### Step 4: Combined Synthesis (Idea 2 + Idea 4 Integrated)
+* **Goal:** Jointly evaluate the dual-axis defense (transverse contrast check from $h\times 21$ + orientation competition from orthogonal inhibition).
+* **Action:**
+  * Train and evaluate the integrated model combining optimal $h\times 21$ strips and orthogonal inhibition under Unified Caliber + Murray loss.
+  * Audit whether $\beta_0$ stumps successfully drop back toward optimal connectivity ($\approx 50 - 54$ stumps) while preserving peak sensitivity ($>89.5\%$).
+  * Generate complete multi-panel fundus comparison images for all evaluated ablation variants.
