@@ -40,6 +40,7 @@ def train_stare_cwcldice(
     loss_mode="cw_cldice",
     use_cad_topo_csa=False,
     strip_height=1,
+    use_orthogonal_inhibition=False,
     init_checkpoint="checkpoints/best_sa_unetv2_stare.pth",
     save_path=None,
     device_name="cuda" if torch.cuda.is_available() else "cpu"
@@ -102,10 +103,18 @@ def train_stare_cwcldice(
     # 2. Model
     model = SA_UNetv2(
         in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15,
-        block_size=7, use_cad_topo_csa=use_cad_topo_csa, strip_height=strip_height
+        block_size=7, use_cad_topo_csa=use_cad_topo_csa, strip_height=strip_height,
+        use_orthogonal_inhibition=use_orthogonal_inhibition
     ).to(device)
     total_params = count_parameters(model)
-    arch_name = f"SA-UNetv2 + CAD-Topo-CSA (h={strip_height})" if use_cad_topo_csa else "Baseline SA-UNetv2"
+    arch_tags = []
+    if use_cad_topo_csa:
+        arch_tags.append(f"h={strip_height}")
+        if use_orthogonal_inhibition:
+            arch_tags.append("ortho-inhib")
+        arch_name = f"SA-UNetv2 + CAD-Topo-CSA ({', '.join(arch_tags)})"
+    else:
+        arch_name = "Baseline SA-UNetv2"
     print(f"[*] Architecture: {arch_name} | Parameters: {total_params / 1e6:.4f}M ({total_params:,})")
 
     # 3. Warm-Start from STARE Baseline Weights
@@ -224,6 +233,7 @@ def train_stare_cwcldice(
                 'val_score': val_score,
                 'total_params': total_params,
                 'strip_height': strip_height,
+                'use_orthogonal_inhibition': use_orthogonal_inhibition,
                 'loss_config': {'alpha': alpha, 'beta': beta, 'lambda_cw': lambda_cw}
             }, save_path)
             print(f"  -> Best model saved to {save_path} (Val Loss: {val_loss:.4f})", flush=True)
@@ -254,6 +264,8 @@ if __name__ == '__main__':
                         help="Enable CAD-Topo-CSA multi-scale skip attention")
     parser.add_argument("--strip_height", type=int, default=1, choices=[1, 3, 5],
                         help="Strip height for transverse-contrast check (default: 1)")
+    parser.add_argument("--use_orthogonal_inhibition", action="store_true",
+                        help="Enable orthogonal cross-strip inhibition (Idea 4)")
     parser.add_argument("--init_checkpoint", type=str, default=None,
                         help="Initial checkpoint to warm-start weights from")
     parser.add_argument("--save_path", type=str, default=None)
@@ -277,6 +289,7 @@ if __name__ == '__main__':
         loss_mode=args.loss_mode,
         use_cad_topo_csa=args.use_cad_topo_csa,
         strip_height=args.strip_height,
+        use_orthogonal_inhibition=args.use_orthogonal_inhibition,
         init_checkpoint=init_ckpt,
         save_path=args.save_path
     )

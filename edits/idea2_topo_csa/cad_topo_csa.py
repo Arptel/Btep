@@ -28,13 +28,15 @@ class CADTopoCSAModule(nn.Module):
     Drop-in replacement for CrossScaleSpatialAttention in SA-UNetv2 skip connections.
     Supports configurable strip height h for transverse contrast checking (h x 21 and 21 x h).
     """
-    def __init__(self, trunk_kernel=7, strip_length=21, strip_height=1, reduction=2):
+    def __init__(self, trunk_kernel=7, strip_length=21, strip_height=1, reduction=2,
+                 use_orthogonal_inhibition=False):
         super(CADTopoCSAModule, self).__init__()
         assert strip_height % 2 == 1, f"strip_height must be odd, got {strip_height}"
         assert strip_length % 2 == 1, f"strip_length must be odd, got {strip_length}"
         self.trunk_kernel = trunk_kernel
         self.strip_length = strip_length
         self.strip_height = strip_height
+        self.use_orthogonal_inhibition = use_orthogonal_inhibition
 
         # Branch 1: Wide Trunk Path (Isotropic Square Conv 7x7)
         self.conv_trunk = nn.Conv2d(
@@ -56,6 +58,16 @@ class CADTopoCSAModule(nn.Module):
             padding=(strip_length // 2, strip_height // 2),
             bias=False
         )
+
+        # Branch 4: Orthogonal Cross-Strip Inhibition (Idea 4)
+        if self.use_orthogonal_inhibition:
+            self.gamma = nn.Parameter(torch.tensor(0.5))
+            self.gate_h = nn.Conv2d(1, 1, kernel_size=1, bias=True)
+            self.gate_v = nn.Conv2d(1, 1, kernel_size=1, bias=True)
+            nn.init.constant_(self.gate_h.weight, 1.0)
+            nn.init.constant_(self.gate_h.bias, 0.0)
+            nn.init.constant_(self.gate_v.weight, 1.0)
+            nn.init.constant_(self.gate_v.bias, 0.0)
 
         # Self-Routing Channel Gate: Squeeze-and-Excitation across the 3 scale paths
         num_branches = 3
@@ -93,6 +105,16 @@ class CADTopoCSAModule(nn.Module):
         f_trunk = self.conv_trunk(concat)      # (B, 1, H, W) - circular trunk walls
         f_strip_h = self.conv_strip_h(concat)  # (B, 1, H, W) - horizontal capillaries
         f_strip_v = self.conv_strip_v(concat)  # (B, 1, H, W) - vertical capillaries
+
+        # 2b. Orthogonal Cross-Strip Inhibition (Idea 4)
+        if self.use_orthogonal_inhibition:
+            eff_gamma = torch.clamp(self.gamma, 0.0, 1.0)
+            diff_h = f_strip_h - eff_gamma * f_strip_v
+            diff_v = f_strip_v - eff_gamma * f_strip_h
+            gate_h = torch.sigmoid(self.gate_h(diff_h))
+            gate_v = torch.sigmoid(self.gate_v(diff_v))
+            f_strip_h = f_strip_h * gate_h
+            f_strip_v = f_strip_v * gate_v
 
         f_multi = torch.cat([f_trunk, f_strip_h, f_strip_v], dim=1)  # (B, 3, H, W)
 

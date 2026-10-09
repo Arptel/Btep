@@ -112,8 +112,13 @@ def evaluate_model(model_path, test_loader, device, threshold=0.5):
         if 'conv_strip_h' in k:
             strip_h = v.shape[2]
             break
+    use_ortho = any('gate_h' in k for k in state_dict.keys())
 
-    model = SA_UNetv2(in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.0, use_cad_topo_csa=use_cad, strip_height=strip_h).to(device)
+    model = SA_UNetv2(
+        in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.0,
+        use_cad_topo_csa=use_cad, strip_height=strip_h,
+        use_orthogonal_inhibition=use_ortho
+    ).to(device)
     model.load_state_dict(state_dict)
     model.eval()
 

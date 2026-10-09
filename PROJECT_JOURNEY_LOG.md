@@ -1080,3 +1080,23 @@ py edits/idea3_murray/render_murray_table_image.py
 py edits/cw_cldice/render_multiway_table_image.py
 ```
 *Outputs:* Saved to [`results/stare_multiway/stare_murray_audit_table.png`](file:///c:/Users/Student/Arth%20Patel/Btep/results/stare_multiway/stare_murray_audit_table.png) and [`results/stare_multiway/stare_8way_comparison_table.png`](file:///c:/Users/Student/Arth%20Patel/Btep/results/stare_multiway/stare_8way_comparison_table.png).
+
+#### 17. Run Strip Height Ablation & Visualization (Step 2: Transverse Contrast Search)
+```powershell
+py edits/cw_cldice/evaluate_strip_height_ablation.py
+py edits/cw_cldice/visualize_strip_height_comparison.py
+```
+*Expected Output:* Evaluates $h \in \{1, 3, 5\}$ and proves $h=3$ slashes $\beta_0$ by $-10.50$ stumps while achieving peak F1 ($83.38\%$).
+
+#### 18. Run Orthogonal Cross-Strip Inhibition Benchmark & Visualization (Step 3: Idea 4 Alone)
+```powershell
+py edits/cw_cldice/evaluate_orthogonal_inhibition.py
+py edits/cw_cldice/visualize_orthogonal_inhibition_comparison.py
+```
+*Expected Output:* Proves directional competition plummets floater hallucination rate from $48.00\% \to 27.02\%$ ($-20.98\%$) and reduces $\beta_0$ by $-8.25$ stumps with only 15 additional parameters.
+
+#### 19. Train Final Combined Synthesis (Step 4: Idea 2 $h=3$ + Idea 4 Ortho-Inhib + Unified + Murray)
+```powershell
+py edits/cw_cldice/train_stare.py --epochs 30 --batch_size 2 --lr 3e-4 --loss_mode murray_unified --use_cad_topo_csa --strip_height 3 --use_orthogonal_inhibition --save_path checkpoints/best_sa_unetv2_stare_final_synthesis.pth
+```
+

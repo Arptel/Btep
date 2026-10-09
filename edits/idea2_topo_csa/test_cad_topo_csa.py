@@ -69,8 +69,25 @@ def test_cad_topo_csa():
         print(f"  -> Strip height h={h}: Params={p_h} | Shape={out_h.shape} [OK]")
     print("  -> Passed! Configurable transverse contrast support fully operational.")
 
+    # 5. Orthogonal Cross-Strip Inhibition (Idea 4) test
+    print("[5/5] Orthogonal Cross-Strip Inhibition Verification (Idea 4)...")
+    mod_ortho = CADTopoCSAModule(trunk_kernel=7, strip_length=21, strip_height=1, use_orthogonal_inhibition=True)
+    p_ortho = sum(p.numel() for p in mod_ortho.parameters() if p.requires_grad)
+    print(f"  -> Module params with Orthogonal Inhibition: {p_ortho} (Overhead: +{p_ortho - params} params)")
+    assert p_ortho - params == 5, f"Unexpected parameter overhead: {p_ortho - params} != 5"
+    
+    out_ortho = mod_ortho(fe, fd)
+    assert out_ortho.shape == fe.shape, "Shape mismatch with orthogonal inhibition!"
+    loss_ortho = out_ortho.sum()
+    loss_ortho.backward()
+    assert mod_ortho.gamma.grad is not None, "Gamma gradient failed!"
+    assert mod_ortho.gate_h.weight.grad is not None, "gate_h gradient failed!"
+    assert mod_ortho.gate_v.weight.grad is not None, "gate_v gradient failed!"
+    print("  -> Autograd gradient flow verified through cross-strip gates and gamma parameter [OK]")
+    print("  -> Passed! Orthogonal Cross-Strip Inhibition fully operational.")
+
     print("=" * 60)
-    print("ALL CAD-TOPO-CSA UNIT TESTS PASSED!")
+    print("ALL 5 CAD-TOPO-CSA UNIT TESTS PASSED!")
     print("=" * 60)
 
 
