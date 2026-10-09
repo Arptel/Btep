@@ -109,6 +109,7 @@ def audit_all_models_on_stare(threshold=0.5, device_name="cuda" if torch.cuda.is
         ("CAD-Topo-CSA (Track 2)", "checkpoints/best_sa_unetv2_stare_cadtocsa.pth"),
         ("CAD-Topo-CSA + Unified (Both)", "checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth"),
         ("CAD-Topo-CSA + Murray (Idea 1+2+3)", "checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth"),
+        ("Final Synthesis (1+2+3+4)", "checkpoints/best_sa_unetv2_stare_final_synthesis.pth"),
     ]
 
     results = {}
@@ -122,7 +123,18 @@ def audit_all_models_on_stare(threshold=0.5, device_name="cuda" if torch.cuda.is
         ckpt = torch.load(path, map_location=device, weights_only=False)
         state_dict = ckpt['model_state_dict'] if 'model_state_dict' in ckpt else ckpt
         use_cad = any('conv_trunk' in k for k in state_dict.keys())
-        model = SA_UNetv2(in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.0, use_cad_topo_csa=use_cad).to(device)
+        strip_h = 1
+        for k, v in state_dict.items():
+            if 'conv_strip_h' in k:
+                strip_h = v.shape[2]
+                break
+        use_ortho = any('gate_h' in k for k in state_dict.keys())
+
+        model = SA_UNetv2(
+            in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.0,
+            use_cad_topo_csa=use_cad, strip_height=strip_h,
+            use_orthogonal_inhibition=use_ortho
+        ).to(device)
         model.load_state_dict(state_dict)
         model.eval()
 

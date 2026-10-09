@@ -1,18 +1,24 @@
 """
-Multi-Way Comparative Benchmark on STARE:
-=========================================
-Compares across all 5 paradigms:
-1. Baseline SA-UNetv2 (ISBI 2026: BCE + MCC)
-2. Vanilla clDice (CVPR 2021: BCE + MCC + clDice)
-3. cw-BCE Standalone (Track 1 Sub-step 1A: cw-BCE + MCC, no skeletonizer)
-4. Ours cw-clDice (Proposed: BCE + MCC + cw-clDice)
-5. Ours Unified Caliber (Track 1 Sub-step 1B: cw-BCE + MCC + cw-clDice)
+Comparative Evaluation Suite: Final Combined Synthesis (Step 4)
+================================================================
+Section 7, Step 4: Dual-Axis Geometric Defense + Physical Synergy on STARE.
+Combines:
+- Idea 1: Unified Conductance-Weighted Supervision (cw-BCE + cw-clDice)
+- Idea 2: Optimal h=3 Transverse Contrast Strip Attention (3x21)
+- Idea 3: Murray's Law Anatomical Bifurcation Physics
+- Idea 4: Orthogonal Cross-Strip Gating Inhibition
+
+Evaluates:
+- Baseline SA-UNetv2
+- CAD-Topo-CSA h=1 (Uninhibited)
+- CAD-Topo-CSA h=3 (Idea 2 alone)
+- CAD-Topo + Murray (Idea 1+2+3 with h=1)
+- Final Combined Synthesis (Idea 1 + Idea 2 h=3 + Idea 3 + Idea 4)
 """
+
 import os
 import sys
-import argparse
 import numpy as np
-from PIL import Image
 import scipy.ndimage as ndi
 import skimage.morphology as morph
 from sklearn.metrics import roc_auc_score
@@ -58,16 +64,27 @@ def compute_sample_metrics(y_true, y_pred_prob, threshold=0.5):
     tprec = (s_pred * gt_bin).sum() / (s_pred.sum() + 1e-7)
     cldice = (2.0 * tprec * tsens) / (tprec + tsens + 1e-7)
 
-    labeled_pred, num_pred_cc = ndi.label(pred_bin, structure=ndi.generate_binary_structure(2, 2))
-    labeled_gt, num_gt_cc = ndi.label(gt_bin, structure=ndi.generate_binary_structure(2, 2))
+    struct = ndi.generate_binary_structure(2, 2)
+    labeled_pred, num_pred_cc = ndi.label(pred_bin, structure=struct)
+    labeled_gt, num_gt_cc = ndi.label(gt_bin, structure=struct)
     frag_ratio = num_pred_cc / max(1, num_gt_cc)
 
     if pred_bin.sum() > 0:
         cc_sizes = ndi.sum(pred_bin, labeled_pred, range(1, num_pred_cc + 1))
+        trunk_label = int(np.argmax(cc_sizes) + 1)
         max_cc = np.max(cc_sizes) if len(cc_sizes) > 0 else 0
         lccr = max_cc / pred_bin.sum()
+        
+        floater_sizes = [int(cc_sizes[i - 1]) for i in range(1, num_pred_cc + 1) if i != trunk_label]
+        fp_floaters = sum(1 for i in range(1, num_pred_cc + 1) if i != trunk_label and np.sum((labeled_pred == i) & (gt_bin == 1.0)) == 0)
     else:
         lccr = 0.0
+        floater_sizes = []
+        fp_floaters = 0
+
+    num_floaters = len(floater_sizes)
+    mean_floater_size = float(np.mean(floater_sizes)) if num_floaters > 0 else 0.0
+    fp_floater_rate = (fp_floaters / num_floaters * 100.0) if num_floaters > 0 else 0.0
 
     return {
         'f1': f1,
@@ -80,11 +97,11 @@ def compute_sample_metrics(y_true, y_pred_prob, threshold=0.5):
         'tsens': tsens,
         'tprec': tprec,
         'beta0_pred': num_pred_cc,
-        'beta0_gt': num_gt_cc,
         'frag_ratio': frag_ratio,
         'lccr': lccr,
-        'pred_bin': pred_bin,
-        'prob': y_pred_prob
+        'num_floaters': num_floaters,
+        'mean_floater_size': mean_floater_size,
+        'fp_floater_rate': fp_floater_rate
     }
 
 
@@ -98,6 +115,7 @@ def evaluate_model(model_path, test_loader, device, threshold=0.5):
             strip_h = v.shape[2]
             break
     use_ortho = any('gate_h' in k for k in state_dict.keys())
+
     model = SA_UNetv2(
         in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.0,
         use_cad_topo_csa=use_cad, strip_height=strip_h,
@@ -124,23 +142,20 @@ def evaluate_model(model_path, test_loader, device, threshold=0.5):
             sample_results[img_id] = metrics
 
     keys = ['f1', 'sensitivity', 'specificity', 'accuracy', 'mcc', 'auc',
-            'cldice', 'tsens', 'tprec', 'beta0_pred', 'frag_ratio', 'lccr']
+            'cldice', 'tsens', 'tprec', 'beta0_pred', 'frag_ratio', 'lccr',
+            'num_floaters', 'mean_floater_size', 'fp_floater_rate']
     return {k: float(np.mean([sample_results[img_id][k] for img_id in sample_results])) for k in keys}
 
 
-def run_multiway_benchmark(threshold=0.5, device_name="cuda" if torch.cuda.is_available() else "cpu"):
+def run_final_synthesis_benchmark(threshold=0.5, device_name="cuda" if torch.cuda.is_available() else "cpu"):
     device = torch.device(device_name)
     _, _, test_loader = get_stare_cwcldice_dataloaders(repeat=1)
 
     models = [
         ("Baseline (ISBI 2026)", "checkpoints/best_sa_unetv2_stare.pth"),
-        ("Vanilla clDice", "checkpoints/best_sa_unetv2_stare_cldice.pth"),
-        ("Standalone cw-BCE (1A)", "checkpoints/best_sa_unetv2_stare_cwbce.pth"),
-        ("Ours cw-clDice", "checkpoints/best_sa_unetv2_stare_cwcldice.pth"),
-        ("Ours Unified (1B)", "checkpoints/best_sa_unetv2_stare_unified.pth"),
-        ("CAD-Topo-CSA (Track 2)", "checkpoints/best_sa_unetv2_stare_cadtocsa.pth"),
-        ("CAD-Topo-CSA + Unified (Both)", "checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth"),
-        ("CAD-Topo-CSA + Murray (Idea 1+2+3)", "checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth"),
+        ("CAD-Topo-CSA h=1", "checkpoints/best_sa_unetv2_stare_cadtocsa.pth"),
+        ("CAD-Topo-CSA h=3", "checkpoints/best_sa_unetv2_stare_cadtocsa_h3.pth"),
+        ("CAD + Murray (1+2+3)", "checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth"),
         ("Final Synthesis (1+2+3+4)", "checkpoints/best_sa_unetv2_stare_final_synthesis.pth"),
     ]
 
@@ -150,49 +165,51 @@ def run_multiway_benchmark(threshold=0.5, device_name="cuda" if torch.cuda.is_av
             print(f"[*] Evaluating {name} from {path}...")
             results[name] = evaluate_model(path, test_loader, device, threshold)
         else:
-            print(f"[!] Checkpoint not found: {path} (skipping {name})")
+            print(f"[-] Checkpoint {path} not found. Skipping {name}.")
 
-    # Header
-    col_names = list(results.keys())
-    metric_defs = [
-        ("Topological Connectivity", None),
-        ("Centerline Dice (clDice) (%)", 'cldice', 100.0, True),
-        ("Topology Sensitivity (%)", 'tsens', 100.0, True),
-        ("Topology Precision (%)", 'tprec', 100.0, True),
-        ("Betti-0 Stumps (beta0)", 'beta0_pred', 1.0, False),
-        ("Fragmentation Ratio", 'frag_ratio', 1.0, False),
-        ("Largest Tree Ratio (LCCR) (%)", 'lccr', 100.0, True),
-        ("Pixel Metrics", None),
-        ("F1-Score / Dice (%)", 'f1', 100.0, True),
-        ("Sensitivity (%)", 'sensitivity', 100.0, True),
-        ("Specificity (%)", 'specificity', 100.0, True),
-        ("Global Accuracy (%)", 'accuracy', 100.0, True),
-        ("Matthews Corr (MCC) (%)", 'mcc', 100.0, True),
-        ("AUC-ROC (%)", 'auc', 100.0, True),
+    print("\n" + "=" * 145)
+    print("FINAL COMBINED SYNTHESIS BENCHMARK ON STARE (IDEA 1 + IDEA 2 (h=3) + IDEA 3 + IDEA 4)")
+    print("=" * 145)
+
+    header = f"{'Metric':<25} | " + " | ".join([f"{name:<22}" for name in results.keys()])
+    print(header)
+    print("-" * 145)
+
+    display_metrics = [
+        ("Centerline Dice (clDice)", 'cldice', True, "%"),
+        ("Topology Sensitivity (Tsens)", 'tsens', True, "%"),
+        ("Topology Precision (Tprec)", 'tprec', True, "%"),
+        ("Betti-0 Stumps (beta0)", 'beta0_pred', False, ""),
+        ("Fragmentation Ratio", 'frag_ratio', False, "x"),
+        ("Largest Tree Ratio (LCCR)", 'lccr', True, "%"),
+        ("F1-Score / Dice", 'f1', True, "%"),
+        ("Sensitivity (Recall)", 'sensitivity', True, "%"),
+        ("Specificity", 'specificity', True, "%"),
+        ("AUC-ROC", 'auc', True, "%"),
+        ("Disconnected Floater Count", 'num_floaters', False, ""),
+        ("Mean Floater Size", 'mean_floater_size', False, "px"),
+        ("Floater Hallucination Rate", 'fp_floater_rate', False, "%"),
     ]
 
-    header_str = f"{'Evaluation Metric':<28} | " + " | ".join([f"{col:<22}" for col in col_names])
-    sep = "=" * len(header_str)
-    print("\n" + sep)
-    print(" COMPLETE ABLATION COMPARISON TABLE ON STARE BENCHMARK")
-    print(sep)
-    print(header_str)
-    print(sep)
+    for label, key, is_pct, suffix in display_metrics:
+        row = f"{label:<25} | "
+        vals = []
+        for name in results.keys():
+            val = results[name][key]
+            if is_pct:
+                vals.append(f"{val*100:6.2f}%{'':<15}")
+            elif suffix == "x":
+                vals.append(f"{val:6.2f}x{'':<15}")
+            elif suffix == "px":
+                vals.append(f"{val:6.1f}px{'':<14}")
+            else:
+                vals.append(f"{val:6.2f}{'':<16}")
+        row += " | ".join(vals)
+        print(row)
+    print("=" * 145)
 
-    for item in metric_defs:
-        if item[1] is None:
-            print("-" * len(header_str))
-            print(f"-- {item[0].upper()} --")
-            continue
-
-        label, key, mult, is_pct = item
-        vals = [f"{results[col][key] * mult:.2f}{'%' if is_pct else ('x' if 'Ratio' in label else '')}" for col in col_names]
-        row_str = f"{label:<28} | " + " | ".join([f"{v:<22}" for v in vals])
-        print(row_str)
-
-    print(sep)
     return results
 
 
 if __name__ == '__main__':
-    run_multiway_benchmark()
+    run_final_synthesis_benchmark()
