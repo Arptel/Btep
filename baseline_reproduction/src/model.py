@@ -114,9 +114,10 @@ class SA_UNetv2(nn.Module):
     Optionally supports CAD-Topo-CSA (Idea 2) for multi-scale directional skip gating.
     """
     def __init__(self, in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15,
-                 block_size=7, use_cad_topo_csa=False):
+                 block_size=7, use_cad_topo_csa=False, strip_height=1):
         super(SA_UNetv2, self).__init__()
         self.use_cad_topo_csa = use_cad_topo_csa
+        self.strip_height = strip_height
         c1 = start_neurons * 1  # 16
         c2 = start_neurons * 2  # 32
         c3 = start_neurons * 3  # 48
@@ -149,7 +150,7 @@ class SA_UNetv2(nn.Module):
                 topo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "edits", "idea2_topo_csa"))
                 sys.path.insert(0, topo_dir)
                 from cad_topo_csa import CADTopoCSAModule
-            csa_fn = lambda: CADTopoCSAModule(trunk_kernel=7, strip_length=21)
+            csa_fn = lambda: CADTopoCSAModule(trunk_kernel=7, strip_length=21, strip_height=strip_height)
         else:
             csa_fn = lambda: CrossScaleSpatialAttention(kernel_size=7)
 

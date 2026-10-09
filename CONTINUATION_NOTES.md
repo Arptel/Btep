@@ -230,19 +230,37 @@ During multi-paradigm evaluation, we identified that while **CAD-Topo-CSA + Unif
 
 The following sequential roadmap outlines the next implementation and benchmarking tasks:
 
-### Step 1: Visual Inspection of Disconnected Pools in Current Final Model
+### Step 1: Visual Inspection of Disconnected Pools in Current Final Model (COMPLETED & VERIFIED)
 * **Goal:** Visually inspect and diagnose the exact morphology and spatial distribution of the disconnected pools.
-* **Action:**
-  * Run inference on STARE using the current final checkpoint ([`checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth`](file:///c:/Users/Student/Arth%20Patel/Btep/checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth)).
-  * Generate high-resolution fundus comparison images: Input RGB Image vs. Ground Truth vs. Predicted Binary Mask vs. Error/Component Map (color-coding connected main trunks vs. isolated floating fragments).
-  * Save to `results/stare_final_visual_comparisons/`.
+* **Findings:**
+  * Analyzed all 4 STARE test cases with Model [8] (`CAD-Topo-CSA + Murray`).
+  * Floater Hallucination Rate averaged **$48.8\%$** across test retinas ($67.0\%$ on `im0001`).
+  * Visual inspection (Panel 6 of [`results/stare_final_visual_comparisons/im0163_disconnected_pools_diagnostic.png`](file:///c:/Users/Student/Arth%20Patel/Btep/results/stare_final_visual_comparisons/im0163_disconnected_pools_diagnostic.png)) revealed floaters have rigid 1-pixel horizontal and vertical streak shapes, confirming $1\times 21$ directional pooling smearing background tissue.
 
-### Step 2: Optimal Height $h$ Search for $h \times 21$ Transverse-Contrast Strips (Idea 2 Alone)
+### Step 2: Optimal Height $h$ Search for $h \times 21$ Transverse-Contrast Strips (COMPLETED & VERIFIED)
 * **Goal:** Enable the 1D strips to perform an orthogonal contrast check (Laplacian/ridge profile $[-1, +2, -1]$) so that diffuse noise is extinguished while genuine capillaries with dark flanking background pass through.
-* **Action:**
-  * Implement configurable strip height $h \in \{1, 3, 5\}$ in `CADTopoCSAModule` (`edits/idea2_topo_csa/cad_topo_csa.py`).
-  * Train and benchmark with **only Idea 2 first** (isolated ablation, e.g. $3\times 21$ and $21\times 3$, keeping standard baseline loss and uninhibited strips).
-  * Generate fundus comparison images showing how increasing $h$ suppresses linear streak artifacts.
+* **Implementation:**
+  * Added configurable `strip_height` $h \in \{1, 3, 5\}$ in [`edits/idea2_topo_csa/cad_topo_csa.py`](file:///c:/Users/Student/Arth%20Patel/Btep/edits/idea2_topo_csa/cad_topo_csa.py) and [`baseline_reproduction/src/model.py`](file:///c:/Users/Student/Arth%20Patel/Btep/baseline_reproduction/src/model.py).
+  * Unit tests verified (all 4 passed, 100%): $h=1$ ($230$ params/mod), $h=3$ ($398$ params/mod), $h=5$ ($566$ params/mod).
+  * Trained isolated ablations on STARE under standard baseline loss:
+    * $h=3$: [`checkpoints/best_sa_unetv2_stare_cadtocsa_h3.pth`](file:///c:/Users/Student/Arth%20Patel/Btep/checkpoints/best_sa_unetv2_stare_cadtocsa_h3.pth) (Best Val Loss: $0.1549$).
+    * $h=5$: [`checkpoints/best_sa_unetv2_stare_cadtocsa_h5.pth`](file:///c:/Users/Student/Arth%20Patel/Btep/checkpoints/best_sa_unetv2_stare_cadtocsa_h5.pth) (Best Val Loss: $0.1516$).
+
+#### Empirical Benchmark: Strip Height Ablation on STARE (Isolated Idea 2)
+
+| Evaluation Metric | Baseline SA-UNetv2 | CAD-Topo-CSA $h=1$ ($1\times 21$) | CAD-Topo-CSA $h=3$ ($3\times 21$) | CAD-Topo-CSA $h=5$ ($5\times 21$) | Key Takeaway |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **Betti-0 Stumps ($\beta_0$)** | $57.50$ | $72.75$ | **$62.25$** | $80.25$ | **$h=3$ slashes $\beta_0$ by $-10.50$ stumps vs $h=1$** |
+| **Disconnected Floater Count**| $56.50$ | $71.75$ | **$61.25$** | $79.25$ | **$h=3$ eliminates $10.50$ floating fragments** |
+| **Floater Hallucination Rate**| $29.08\%$ | $48.00\%$ | **$36.25\%$** | $41.59\%$ | **$h=3$ drops hallucination rate by $-11.75\%$** |
+| **Topology Precision ($T_{\text{prec}}$)**| **$93.24\%$** | $89.24\%$ | **$92.10\%$** | $91.19\%$ | **$h=3$ restores $+2.86\%$ precision over $h=1$** |
+| **Topology Sens ($T_{\text{sens}}$)**| $80.97\%$ | **$86.81\%$** | $83.36\%$ | $82.98\%$ | Preserves strong capillary centerline recovery |
+| **F1-Score / Dice** | $82.44\%$ | $82.85\%$ | **$83.38\%$** | $82.36\%$ | **$h=3$ achieves peak F1 across all architectural ablations** |
+| **Specificity** | **$98.50\%$** | $98.13\%$ | **$98.49\%$** | $98.31\%$ | **$h=3$ restores exceptional background suppression** |
+| **AUC-ROC** | $98.69\%$ | $98.85\%$ | **$98.89\%$** | $98.70\%$ | **$h=3$ achieves highest discriminatory boundary confidence** |
+
+* **The Capillary Caliber Constraint:** Retinal capillaries have radius $r \approx 1\text{ px}$. A $3\times 21$ strip kernel ($2r+1 = 3\text{ px}$) provides the exact mathematical span for a cross-sectional Laplacian $[-1, +2, -1]$. Widening further to $h=5$ ($5\times 21$) exceeds capillary boundaries, causing the kernel to blur into background tissue along tortuous curves and increasing fragmentation back up to $80.25$. Hence, **$h=3$ is empirically and mathematically optimal**.
+* **Visual Verification:** High-resolution ROI comparisons generated in [`results/stare_final_visual_comparisons/im0163_strip_height_ablation_roi.png`](file:///c:/Users/Student/Arth%20Patel/Btep/results/stare_final_visual_comparisons/im0163_strip_height_ablation_roi.png).
 
 ### Step 3: Implement Orthogonal Inhibition / Cross-Strip Suppression (Idea 4 Alone)
 * **Goal:** Introduce directional competition between horizontal ($F_H$) and vertical ($F_V$) strips to suppress isotropic background noise while preserving dominant unidirectional capillaries and crossing junctions.

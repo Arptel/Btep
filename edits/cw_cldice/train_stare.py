@@ -39,6 +39,7 @@ def train_stare_cwcldice(
     patience_lr_plateau=7,
     loss_mode="cw_cldice",
     use_cad_topo_csa=False,
+    strip_height=1,
     init_checkpoint="checkpoints/best_sa_unetv2_stare.pth",
     save_path=None,
     device_name="cuda" if torch.cuda.is_available() else "cpu"
@@ -99,9 +100,12 @@ def train_stare_cwcldice(
     print(f"[*] Validation samples: {len(val_loader.dataset)} | Test samples: {len(test_loader.dataset)}")
 
     # 2. Model
-    model = SA_UNetv2(in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15, block_size=7, use_cad_topo_csa=use_cad_topo_csa).to(device)
+    model = SA_UNetv2(
+        in_channels=3, out_channels=1, start_neurons=16, drop_prob=0.15,
+        block_size=7, use_cad_topo_csa=use_cad_topo_csa, strip_height=strip_height
+    ).to(device)
     total_params = count_parameters(model)
-    arch_name = "SA-UNetv2 + CAD-Topo-CSA" if use_cad_topo_csa else "Baseline SA-UNetv2"
+    arch_name = f"SA-UNetv2 + CAD-Topo-CSA (h={strip_height})" if use_cad_topo_csa else "Baseline SA-UNetv2"
     print(f"[*] Architecture: {arch_name} | Parameters: {total_params / 1e6:.4f}M ({total_params:,})")
 
     # 3. Warm-Start from STARE Baseline Weights
@@ -109,9 +113,19 @@ def train_stare_cwcldice(
         print(f"[*] Warm-starting weights from baseline: {init_checkpoint}")
         ckpt = torch.load(init_checkpoint, map_location=device, weights_only=False)
         state_dict = ckpt['model_state_dict'] if 'model_state_dict' in ckpt else ckpt
-        res = model.load_state_dict(state_dict, strict=not use_cad_topo_csa)
+        # Filter matching tensor sizes to prevent shape mismatches if strip dimensions change
+        filtered_state_dict = {}
+        model_dict = model.state_dict()
+        mismatched_keys = []
+        for k, v in state_dict.items():
+            if k in model_dict:
+                if v.shape == model_dict[k].shape:
+                    filtered_state_dict[k] = v
+                else:
+                    mismatched_keys.append(k)
+        res = model.load_state_dict(filtered_state_dict, strict=False)
         if use_cad_topo_csa:
-            print(f"-> Warm-started backbone! (Missing keys initialized: {len(res.missing_keys)})")
+            print(f"-> Warm-started backbone! (Missing/re-initialized keys: {len(res.missing_keys)}, Mismatched: {len(mismatched_keys)})")
         else:
             print("-> Baseline weights loaded successfully!")
     else:
@@ -209,6 +223,7 @@ def train_stare_cwcldice(
                 'val_loss': val_loss,
                 'val_score': val_score,
                 'total_params': total_params,
+                'strip_height': strip_height,
                 'loss_config': {'alpha': alpha, 'beta': beta, 'lambda_cw': lambda_cw}
             }, save_path)
             print(f"  -> Best model saved to {save_path} (Val Loss: {val_loss:.4f})", flush=True)
@@ -237,6 +252,8 @@ if __name__ == '__main__':
                         help="Loss objective paradigm")
     parser.add_argument("--use_cad_topo_csa", action="store_true",
                         help="Enable CAD-Topo-CSA multi-scale skip attention")
+    parser.add_argument("--strip_height", type=int, default=1, choices=[1, 3, 5],
+                        help="Strip height for transverse-contrast check (default: 1)")
     parser.add_argument("--init_checkpoint", type=str, default=None,
                         help="Initial checkpoint to warm-start weights from")
     parser.add_argument("--save_path", type=str, default=None)
@@ -259,6 +276,7 @@ if __name__ == '__main__':
         repeat=args.repeat,
         loss_mode=args.loss_mode,
         use_cad_topo_csa=args.use_cad_topo_csa,
+        strip_height=args.strip_height,
         init_checkpoint=init_ckpt,
         save_path=args.save_path
     )

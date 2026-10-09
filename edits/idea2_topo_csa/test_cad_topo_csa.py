@@ -57,6 +57,18 @@ def test_cad_topo_csa():
     print(f"  -> Strip V response on horizontal line: {resp_v.abs().mean().item():.4f}")
     print("  -> Passed! Directional geometric processing confirmed.")
 
+    # 4. Configurable strip height h in {1, 3, 5} test
+    print("[4/4] Transverse-Contrast Strip Height h in {1, 3, 5} Verification...")
+    for h in [1, 3, 5]:
+        mod_h = CADTopoCSAModule(trunk_kernel=7, strip_length=21, strip_height=h)
+        p_h = sum(p.numel() for p in mod_h.parameters() if p.requires_grad)
+        out_h = mod_h(fe, fd)
+        assert out_h.shape == fe.shape, f"Height h={h} failed shape check: {out_h.shape}"
+        loss_h = out_h.sum()
+        loss_h.backward()
+        print(f"  -> Strip height h={h}: Params={p_h} | Shape={out_h.shape} [OK]")
+    print("  -> Passed! Configurable transverse contrast support fully operational.")
+
     print("=" * 60)
     print("ALL CAD-TOPO-CSA UNIT TESTS PASSED!")
     print("=" * 60)

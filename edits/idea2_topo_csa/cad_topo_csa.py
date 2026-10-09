@@ -26,25 +26,35 @@ class CADTopoCSAModule(nn.Module):
     """
     Caliber-Adaptive Directional Cross-Scale Spatial Attention (CAD-Topo-CSA).
     Drop-in replacement for CrossScaleSpatialAttention in SA-UNetv2 skip connections.
+    Supports configurable strip height h for transverse contrast checking (h x 21 and 21 x h).
     """
-    def __init__(self, trunk_kernel=7, strip_length=21, reduction=2):
+    def __init__(self, trunk_kernel=7, strip_length=21, strip_height=1, reduction=2):
         super(CADTopoCSAModule, self).__init__()
+        assert strip_height % 2 == 1, f"strip_height must be odd, got {strip_height}"
+        assert strip_length % 2 == 1, f"strip_length must be odd, got {strip_length}"
         self.trunk_kernel = trunk_kernel
         self.strip_length = strip_length
+        self.strip_height = strip_height
 
         # Branch 1: Wide Trunk Path (Isotropic Square Conv 7x7)
         self.conv_trunk = nn.Conv2d(
             2, 1, kernel_size=trunk_kernel, padding=trunk_kernel // 2, bias=False
         )
 
-        # Branch 2: Horizontal Capillary Strip Path (1 x 21)
+        # Branch 2: Horizontal Capillary Strip Path (h x strip_length)
         self.conv_strip_h = nn.Conv2d(
-            2, 1, kernel_size=(1, strip_length), padding=(0, strip_length // 2), bias=False
+            2, 1,
+            kernel_size=(strip_height, strip_length),
+            padding=(strip_height // 2, strip_length // 2),
+            bias=False
         )
 
-        # Branch 3: Vertical Capillary Strip Path (21 x 1)
+        # Branch 3: Vertical Capillary Strip Path (strip_length x h)
         self.conv_strip_v = nn.Conv2d(
-            2, 1, kernel_size=(strip_length, 1), padding=(strip_length // 2, 0), bias=False
+            2, 1,
+            kernel_size=(strip_length, strip_height),
+            padding=(strip_length // 2, strip_height // 2),
+            bias=False
         )
 
         # Self-Routing Channel Gate: Squeeze-and-Excitation across the 3 scale paths
