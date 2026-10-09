@@ -174,16 +174,15 @@ def run_full_floater_audit():
 
     models = [
         ("[1] Baseline (ISBI 2026)", "checkpoints/best_sa_unetv2_stare.pth"),
-        ("[2] Vanilla clDice", "checkpoints/best_sa_unetv2_stare_cldice.pth"),
-        ("[3] Standalone cw-BCE", "checkpoints/best_sa_unetv2_stare_cwbce.pth"),
-        ("[4] Ours cw-clDice", "checkpoints/best_sa_unetv2_stare_cwcldice.pth"),
-        ("[5] Ours Unified", "checkpoints/best_sa_unetv2_stare_unified.pth"),
-        ("[6] CAD-Topo-CSA (1x21)", "checkpoints/best_sa_unetv2_stare_cadtocsa.pth"),
-        ("[7] CAD-Topo + Unified", "checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth"),
-        ("[8] CAD-Topo + Murray", "checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth"),
-        ("[9] CAD-Topo (3x21)", "checkpoints/best_sa_unetv2_stare_cadtocsa_h3.pth"),
-        ("[10] CAD + Ortho-Inhib", "checkpoints/best_sa_unetv2_stare_cadtocsa_ortho.pth"),
-        ("[11] Final Synthesis", "checkpoints/best_sa_unetv2_stare_final_synthesis.pth"),
+        ("[2] Standalone cw-BCE", "checkpoints/best_sa_unetv2_stare_cwbce.pth"),
+        ("[3] Ours cw-clDice", "checkpoints/best_sa_unetv2_stare_cwcldice.pth"),
+        ("[4] Ours Unified", "checkpoints/best_sa_unetv2_stare_unified.pth"),
+        ("[5] CAD-Topo-CSA (1x21)", "checkpoints/best_sa_unetv2_stare_cadtocsa.pth"),
+        ("[6] CAD-Topo + Unified", "checkpoints/best_sa_unetv2_stare_cadtocsa_unified.pth"),
+        ("[7] CAD-Topo + Murray", "checkpoints/best_sa_unetv2_stare_cadtocsa_murray.pth"),
+        ("[8] CAD-Topo (3x21)", "checkpoints/best_sa_unetv2_stare_cadtocsa_h3.pth"),
+        ("[9] CAD + Ortho-Inhib", "checkpoints/best_sa_unetv2_stare_cadtocsa_ortho.pth"),
+        ("[10] Final Synthesis", "checkpoints/best_sa_unetv2_stare_final_synthesis.pth"),
     ]
 
     results = {}
@@ -195,9 +194,9 @@ def run_full_floater_audit():
             print(f"[-] Checkpoint {path} not found! Skipping {name}")
 
     # Print Console Summary
-    print("\n" + "=" * 165)
-    print("COMPLETE RETINAL FLOATER HALLUCINATION & CONNECTIVITY AUDIT ON STARE (ALL 11 MODELS)")
-    print("=" * 165)
+    print("\n" + "=" * 200)
+    print("COMPLETE RETINAL FLOATER HALLUCINATION & CONNECTIVITY AUDIT ON STARE (10 MODELS)")
+    print("=" * 200)
 
     headers = [
         "Model Paradigm",
@@ -212,31 +211,42 @@ def run_full_floater_audit():
         "Tprec (%)",
         "F1 (%)",
         "Sensitivity (%)",
-        "Specificity (%)"
+        "Specificity (%)",
+        "Global Acc (%)",
+        "MCC (%)",
+        "AUC-ROC (%)"
     ]
 
-    header_fmt = f"{headers[0]:<28} | {headers[1]:<13} | {headers[2]:<13} | {headers[3]:<12} | {headers[4]:<17} | {headers[5]:<17} | {headers[6]:<10} | {headers[7]:<10} | {headers[8]:<10} | {headers[9]:<10} | {headers[10]:<8} | {headers[11]:<15} | {headers[12]:<15}"
+    header_fmt = (
+        f"{headers[0]:<26} | {headers[1]:<12} | {headers[2]:<13} | {headers[3]:<11} | "
+        f"{headers[4]:<17} | {headers[5]:<17} | {headers[6]:<9} | {headers[7]:<10} | "
+        f"{headers[8]:<9} | {headers[9]:<9} | {headers[10]:<7} | {headers[11]:<15} | "
+        f"{headers[12]:<15} | {headers[13]:<14} | {headers[14]:<8} | {headers[15]:<11}"
+    )
     print(header_fmt)
-    print("-" * 165)
+    print("-" * 200)
 
     for name, r in results.items():
         row_str = (
-            f"{name:<28} | "
-            f"{r['beta0_pred']:>10.2f}    | "
-            f"{r['num_floaters']:>10.2f}    | "
-            f"{r['fp_floaters']:>9.2f}   | "
+            f"{name:<26} | "
+            f"{r['beta0_pred']:>9.2f}   | "
+            f"{r['num_floaters']:>10.2f}   | "
+            f"{r['fp_floaters']:>8.2f}   | "
             f"{r['fp_floater_rate']:>14.2f}%  | "
             f"{r['mean_floater_size']:>13.1f} px  | "
-            f"{r['lccr']*100:>7.2f}%  | "
+            f"{r['lccr']*100:>6.2f}%  | "
             f"{r['cldice']*100:>7.2f}%  | "
-            f"{r['tsens']*100:>7.2f}%  | "
-            f"{r['tprec']*100:>7.2f}%  | "
-            f"{r['f1']*100:>6.2f}% | "
+            f"{r['tsens']*100:>6.2f}%  | "
+            f"{r['tprec']*100:>6.2f}%  | "
+            f"{r['f1']*100:>5.2f}% | "
             f"{r['sensitivity']*100:>12.2f}%  | "
-            f"{r['specificity']*100:>12.2f}%"
+            f"{r['specificity']*100:>12.2f}%  | "
+            f"{r['accuracy']*100:>11.2f}%  | "
+            f"{r['mcc']*100:>5.2f}% | "
+            f"{r['auc']*100:>8.2f}%"
         )
         print(row_str)
-    print("=" * 165)
+    print("=" * 200)
 
     # Render High-Resolution PNG Table
     render_floater_table_png(results)
@@ -262,13 +272,23 @@ def render_floater_table_png(results):
         "Topology\nPrec (%)",
         "F1 / Dice\n(%)",
         "Sensitivity\nRecall (%)",
-        "Specificity\n(%)"
+        "Specificity\n(%)",
+        "Global\nAcc (%)",
+        "MCC\n(%)",
+        "AUC-ROC\n(%)"
     ]
 
     table_data = []
     for name, r in results.items():
+        clean_name = (
+            name.replace(" (ISBI 2026)", "")
+                .replace(" (Track 1A)", "")
+                .replace(" (Proposed)", "")
+                .replace(" (Track 1B)", "")
+                .replace(" (Track 2)", "")
+        )
         table_data.append([
-            name.replace(" (ISBI 2026)", "").replace(" (Track 1A)", "").replace(" (Proposed)", "").replace(" (Track 1B)", "").replace(" (Track 2)", ""),
+            clean_name,
             f"{r['beta0_pred']:.2f}",
             f"{r['num_floaters']:.2f}",
             f"{r['fp_floaters']:.2f}",
@@ -281,9 +301,12 @@ def render_floater_table_png(results):
             f"{r['f1']*100:.2f}%",
             f"{r['sensitivity']*100:.2f}%",
             f"{r['specificity']*100:.2f}%",
+            f"{r['accuracy']*100:.2f}%",
+            f"{r['mcc']*100:.2f}%",
+            f"{r['auc']*100:.2f}%",
         ])
 
-    fig, ax = plt.subplots(figsize=(26, 8.5), dpi=300)
+    fig, ax = plt.subplots(figsize=(32, 9.0), dpi=300)
     ax.axis('off')
 
     table = ax.table(
@@ -294,9 +317,27 @@ def render_floater_table_png(results):
     )
 
     table.auto_set_font_size(False)
-    table.set_fontsize(9.5)
+    table.set_fontsize(9.0)
 
-    col_widths = [0.18, 0.065, 0.065, 0.065, 0.08, 0.075, 0.07, 0.065, 0.07, 0.07, 0.065, 0.07, 0.06]
+    # 16 columns: sum = 1.0
+    col_widths = [
+        0.15,   # Model Paradigm
+        0.05,   # beta0
+        0.05,   # Floater Count
+        0.055,  # Pure FP Floaters
+        0.07,   # Hallucination Rate
+        0.065,  # Mean Floater Area
+        0.06,   # LCCR
+        0.055,  # clDice
+        0.055,  # Topology Sens
+        0.055,  # Topology Prec
+        0.05,   # F1 / Dice
+        0.06,   # Sensitivity
+        0.055,  # Specificity
+        0.055,  # Global Acc
+        0.05,   # MCC
+        0.055   # AUC-ROC
+    ]
     for i, width in enumerate(col_widths):
         for j in range(len(table_data) + 1):
             cell = table[(j, i)]
@@ -306,7 +347,7 @@ def render_floater_table_png(results):
     row_alt_color = '#F8FAFC'
     row_base_color = '#FFFFFF'
     highlight_ortho = '#FEF08A'
-    highlight_cldice = '#DCFCE7'
+    highlight_winner = '#DCFCE7'
 
     for (row_idx, col_idx), cell in table.get_celld().items():
         cell.set_edgecolor('#CBD5E1')
@@ -316,32 +357,60 @@ def render_floater_table_png(results):
             cell.set_facecolor(header_color)
             cell.get_text().set_color('white')
             cell.get_text().set_weight('bold')
-            cell.get_text().set_fontsize(10)
+            cell.get_text().set_fontsize(9.5)
             cell.set_height(0.10)
         else:
             cell.set_height(0.065)
             r = row_idx - 1
             base_bg = row_alt_color if r % 2 == 1 else row_base_color
 
-            # Highlight Orthogonal Inhibition (Row 9: col 4 Hallucination lowest)
             if col_idx == 0:
                 cell.set_facecolor('#F1F5F9')
                 cell.get_text().set_weight('bold')
                 cell.get_text().set_ha('left')
-            elif col_idx == 4 and r == 9: # Ortho hallucination rate
+            # Ortho Hallucination lowest (r=8, col=4)
+            elif col_idx == 4 and r == 8:
                 cell.set_facecolor(highlight_ortho)
                 cell.get_text().set_weight('bold')
                 cell.get_text().set_color('#78350F')
-            elif col_idx == 1 and r == 3: # cw-clDice beta0 lowest
-                cell.set_facecolor(highlight_cldice)
+            # cw-clDice beta0 lowest (r=2, col=1)
+            elif col_idx == 1 and r == 2:
+                cell.set_facecolor(highlight_winner)
                 cell.get_text().set_weight('bold')
                 cell.get_text().set_color('#14532D')
-            elif col_idx == 7 and r == 10: # Final Synthesis clDice highest
+            # Final Synthesis clDice highest (r=9, col=7)
+            elif col_idx == 7 and r == 9:
                 cell.set_facecolor(highlight_ortho)
                 cell.get_text().set_weight('bold')
                 cell.get_text().set_color('#78350F')
-            elif col_idx == 11 and r == 6: # CAD+Unified peak recall
-                cell.set_facecolor(highlight_cldice)
+            # CAD+Unified peak recall (r=5, col=11)
+            elif col_idx == 11 and r == 5:
+                cell.set_facecolor(highlight_winner)
+                cell.get_text().set_weight('bold')
+                cell.get_text().set_color('#14532D')
+            # Ortho peak specificity (r=8, col=12)
+            elif col_idx == 12 and r == 8:
+                cell.set_facecolor(highlight_ortho)
+                cell.get_text().set_weight('bold')
+                cell.get_text().set_color('#78350F')
+            # Peak F1: CAD 3x21 (r=7, col=10) & cw-clDice (r=2, col=10)
+            elif col_idx == 10 and r in [2, 7]:
+                cell.set_facecolor(highlight_winner)
+                cell.get_text().set_weight('bold')
+                cell.get_text().set_color('#14532D')
+            # Peak AUC-ROC: cw-BCE (r=1, col=15) & Final Synthesis (r=9, col=15)
+            elif col_idx == 15 and r in [1, 9]:
+                cell.set_facecolor(highlight_ortho if r == 9 else highlight_winner)
+                cell.get_text().set_weight('bold')
+                cell.get_text().set_color('#78350F' if r == 9 else '#14532D')
+            # Peak MCC: cw-clDice (r=2, col=14)
+            elif col_idx == 14 and r == 2:
+                cell.set_facecolor(highlight_winner)
+                cell.get_text().set_weight('bold')
+                cell.get_text().set_color('#14532D')
+            # Peak Accuracy: cw-clDice (r=2, col=13)
+            elif col_idx == 13 and r == 2:
+                cell.set_facecolor(highlight_winner)
                 cell.get_text().set_weight('bold')
                 cell.get_text().set_color('#14532D')
             else:
@@ -350,7 +419,7 @@ def render_floater_table_png(results):
 
     plt.title(
         "COMPLETE RETINAL VESSEL FLOATER HALLUCINATION & TOPOLOGICAL CONNECTIVITY AUDIT (STARE BENCHMARK)\n"
-        "Quantifying Betti-0 Stumps, Disconnected Floater Hallucination Rate, and Topological Precision Across All 11 Models",
+        "Quantifying Betti-0 Stumps, Disconnected Floater Hallucination Rate, AUC-ROC, MCC, and Global Accuracy Across Models",
         fontsize=13,
         fontweight='bold',
         pad=20,
